@@ -30,6 +30,11 @@ public class TemplateGlobals {
 
     public void setTranslator(Translator translator) {this.translator = translator;}
 
+    public String getGrammarFileAbsolutePath() {
+        Path filename = appSettings.getFilename();
+        return filename != null ? filename.toAbsolutePath().toString() : "unknown";
+    }
+
     public boolean nodeIsInterface(String nodeName) {
         return grammar.nodeIsInterface(nodeName);
     }

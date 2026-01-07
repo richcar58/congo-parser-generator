@@ -139,6 +139,21 @@ public class FilesGenerator {
                     generate(parserOutputDirectory, p);
                 }
             }
+            case RUST -> {
+                // Generate Rust parser files
+                String[] paths = new String[]{
+                        "lib.rs",
+                        "arena.rs",
+                        "tokens.rs",
+                        "lexer.rs",
+                        "parser.rs",
+                        "error.rs",
+                        "Cargo.toml"
+                };
+                for (String p : paths) {
+                    generate(parserOutputDirectory, p);
+                }
+            }
         }
     }
 

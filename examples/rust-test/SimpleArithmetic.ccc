@@ -1,0 +1,48 @@
+// Simple arithmetic grammar for testing Rust generation
+
+PARSER_PACKAGE="arithmetic";
+PARSER_CLASS="ArithmeticParser";
+LEXER_CLASS="ArithmeticLexer";
+
+// Root production
+Expression :
+    AdditiveExpression <EOF>
+;
+
+// Addition and subtraction
+AdditiveExpression :
+    MultiplicativeExpression
+    (
+        ("+" | "-") MultiplicativeExpression
+    )*
+;
+
+// Multiplication and division
+MultiplicativeExpression :
+    Primary
+    (
+        ("*" | "/") Primary
+    )*
+;
+
+// Primary expressions - numbers and parentheses
+Primary :
+    <INTEGER>
+    | "(" AdditiveExpression ")"
+;
+
+// Token definitions
+TOKEN :
+    <INTEGER : (["0"-"9"])+ >
+    | <PLUS : "+">
+    | <MINUS : "-">
+    | <STAR : "*">
+    | <SLASH : "/">
+    | <LPAREN : "(">
+    | <RPAREN : ")">
+;
+
+// Skip whitespace
+SKIP :
+    " " | "\t" | "\n" | "\r"
+;

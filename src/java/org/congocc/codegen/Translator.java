@@ -7,6 +7,7 @@ import org.congocc.app.AppSettings;
 import org.congocc.codegen.csharp.CSharpTranslator;
 import org.congocc.codegen.java.CodeInjector;
 import org.congocc.codegen.python.PythonTranslator;
+import org.congocc.codegen.rust.RustTranslator;
 import org.congocc.parser.Node;
 import org.congocc.parser.Node.CodeLang;
 import static org.congocc.parser.Node.CodeLang.*;
@@ -709,6 +710,9 @@ public class Translator {
         }
         else if (codeLang == CSHARP) {
             return new CSharpTranslator(grammar);
+        }
+        else if (codeLang == RUST) {
+            return new RustTranslator(grammar);
         }
         // Add other language translator cases here
         return new Translator(grammar); // handle the Java case

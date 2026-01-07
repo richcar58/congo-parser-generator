@@ -86,6 +86,7 @@ public class RawCode extends EmptyExpansion implements EmbeddedCode {
                 case PYTHON -> "\n# No output. This is Python code.";
                 case JAVA -> "// No output. This is Java code.";
                 case CSHARP -> "// No output. This is CSharp code.";
+                case RUST -> "// No output. This is Rust code.";
             };
         }
         if (useAltPythonFormat()) {
