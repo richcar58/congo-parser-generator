@@ -34,6 +34,10 @@ CongoCC has some features that, to the best of our knowledge are not in most (or
 
 CongoCC also supports [fault-tolerant parsing](https://parsers.org/javacc21/the-promised-land-fault-tolerant-parsing/) that is admittedly in an unpolished, experimental stage, but basically usable.
 
+If you are interested in this project, either as a user or developer, by all means sign up on our [Discussion Forum](https://discuss.congocc.org) and post any questions or suggestions there.
+
+See our [QuickStart Guide](https://parsers.org/home/).
+
 ## Rust Code Generation
 
 CongoCC can generate idiomatic Rust parsers with modern features including arena allocation, type-safe indices, and comprehensive error handling.
@@ -284,6 +288,6 @@ fn main() -> Result<(), ParseError> {
 - **Lints**: The generated `lib.rs` includes recommended lint configuration
 - **Edition**: Code is generated for Rust 2024 edition
 
-If you are interested in this project, either as a user or developer, by all means sign up on our [Discussion Forum](https://discuss.congocc.org) and post any questions or suggestions there.
+#### Acknowledgments
 
-See our [QuickStart Guide](https://parsers.org/home/).
+Anthopic's Claude Sonnet 4.5 was used to generate most of the Rust code and documentation in this project.  See [docs/command_prompts.md](docs/command_prompts.md) for prompt history.
