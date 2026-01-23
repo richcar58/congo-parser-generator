@@ -2,7 +2,7 @@
 /docs/*
 /build/*
 /classes/*
-/target/*
+**/target/*
 /.settings/*
 __pycache__/*
 /*.jar
@@ -47,6 +47,7 @@ __pycache__/*
 /examples/lua/cs-luaparser/*
 /examples/cardinality/org/*
 /examples/cics/org/*
+/examples/rust-test/target*
 /personal.code-workspace
 /.vscode/*
 /.idea/*

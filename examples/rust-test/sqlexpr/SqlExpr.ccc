@@ -1,0 +1,144 @@
+// Simplified SQL Expression Grammar for Rust code generation
+// Supports: boolean expressions, comparisons, arithmetic, LIKE, IN, BETWEEN, IS NULL
+
+PARSER_PACKAGE = "sqlexpr";
+PARSER_CLASS = "SqlExprParser";
+LEXER_CLASS = "SqlExprLexer";
+
+// Root production - a SQL filter expression
+SqlExpression :
+    OrExpression <EOF>
+;
+
+// Boolean OR
+OrExpression :
+    AndExpression
+    (
+        <OR> AndExpression
+    )*
+;
+
+// Boolean AND
+AndExpression :
+    NotExpression
+    (
+        <AND> NotExpression
+    )*
+;
+
+// Boolean NOT
+NotExpression :
+    <NOT> NotExpression
+    | ComparisonExpression
+;
+
+// Comparison expressions
+ComparisonExpression :
+    AdditiveExpression
+    (
+        // Standard comparisons
+        (<EQ> | <NE> | <LT> | <GT> | <LE> | <GE>) AdditiveExpression
+        // LIKE expression
+        | <LIKE> <STRING_LITERAL>
+        // IN expression
+        | <IN> "(" ValueList ")"
+        // BETWEEN expression
+        | <BETWEEN> AdditiveExpression <AND> AdditiveExpression
+        // IS NULL / IS NOT NULL
+        | <IS> (<NOT>)? <NULL>
+    )?
+;
+
+// Comma-separated list of values
+ValueList :
+    AdditiveExpression
+    (
+        "," AdditiveExpression
+    )*
+;
+
+// Addition and subtraction
+AdditiveExpression :
+    MultiplicativeExpression
+    (
+        (<PLUS> | <MINUS>) MultiplicativeExpression
+    )*
+;
+
+// Multiplication and division
+MultiplicativeExpression :
+    UnaryExpression
+    (
+        (<STAR> | <SLASH>) UnaryExpression
+    )*
+;
+
+// Unary minus
+UnaryExpression :
+    <MINUS> UnaryExpression
+    | PrimaryExpression
+;
+
+// Primary expressions - literals, identifiers, parentheses
+PrimaryExpression :
+    <INTEGER_LITERAL>
+    | <DECIMAL_LITERAL>
+    | <STRING_LITERAL>
+    | <TRUE>
+    | <FALSE>
+    | <NULL>
+    | <IDENTIFIER>
+    | "(" OrExpression ")"
+;
+
+// ============================================================================
+// TOKEN DEFINITIONS
+// ============================================================================
+
+// Keywords (case insensitive)
+TOKEN [IGNORE_CASE] :
+    <AND : "AND">
+    | <OR : "OR">
+    | <NOT : "NOT">
+    | <TRUE : "TRUE">
+    | <FALSE : "FALSE">
+    | <NULL : "NULL">
+    | <LIKE : "LIKE">
+    | <IN : "IN">
+    | <BETWEEN : "BETWEEN">
+    | <IS : "IS">
+;
+
+// Operators
+TOKEN :
+    <EQ : "=">
+    | <NE : "<>" | "!=">
+    | <LT : "<">
+    | <GT : ">">
+    | <LE : "<=">
+    | <GE : ">=">
+    | <PLUS : "+">
+    | <MINUS : "-">
+    | <STAR : "*">
+    | <SLASH : "/">
+    | <LPAREN : "(">
+    | <RPAREN : ")">
+    | <COMMA : ",">
+;
+
+// Literals
+TOKEN :
+    <INTEGER_LITERAL : (["0"-"9"])+ >
+    | <DECIMAL_LITERAL : (["0"-"9"])+ "." (["0"-"9"])+ >
+    | <STRING_LITERAL : "'" (~["'"])* "'" >
+;
+
+// Identifiers
+TOKEN :
+    <IDENTIFIER : ["a"-"z","A"-"Z","_"] (["a"-"z","A"-"Z","0"-"9","_"])* >
+;
+
+// Skip whitespace
+SKIP :
+    " " | "\t" | "\n" | "\r"
+;

@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Congo Parser Generator (CongoCC)** is a recursive descent parser generator written in Java that generates parsers in Java, Python, and C#. It's a self-hosting compiler-compiler that uses its own bootstrap jar to rebuild itself.
-
-**Note**: Despite the directory name "congo-rustgen", this project does NOT support Rust code generation. Only Java, Python, and C# are supported.
+**Congo Parser Generator (CongoCC)** is a recursive descent parser generator written in Java that generates parsers in Java, Python, C#, and Rust. It's a self-hosting compiler-compiler that uses its own bootstrap jar to rebuild itself.
 
 ## Build Commands
 
@@ -50,7 +48,7 @@ java -jar congocc.jar [options] grammar-file.ccc
 
 # Common options:
 #   -d <dir>           Output directory
-#   -lang <language>   Target language: java (default), python, csharp
+#   -lang <language>   Target language: java (default), python, csharp, rust
 #   -jdk<N>            JDK target version (8-25, Java only)
 #   -p key=value       Set preprocessor symbols
 #   -q                 Quiet mode
@@ -58,6 +56,9 @@ java -jar congocc.jar [options] grammar-file.ccc
 
 # Example: Generate Python parser
 java -jar congocc.jar -lang python -d output/ grammar.ccc
+
+# Example: Generate Rust parser
+java -jar congocc.jar -lang rust -d output/ grammar.ccc
 ```
 
 ## Architecture
@@ -87,14 +88,15 @@ java -jar congocc.jar -lang python -d output/ grammar.ccc
 - Multi-language code generation system
 - `FilesGenerator.java` - Orchestrates file generation
 - `TemplateGlobals.java` - Global template variables/functions
-- `java/`, `python/`, `csharp/` - Language-specific generators
+- `java/`, `python/`, `csharp/`, `rust/` - Language-specific generators
   - Each has: Formatter, Translator, Reaper (cleanup)
   - Java also has CodeInjector
+  - Rust has RustTranslator (maps Java types to Rust, converts naming conventions)
 
 **`org.congocc.templates`** (~30+ classes)
 - Custom template engine (CTL - Congo Template Language)
 - Similar to FreeMarker but tailored for code generation
-- Templates in `src/templates/{java,python,csharp}/*.ctl`
+- Templates in `src/templates/{java,python,csharp,rust}/*.ctl`
 
 ### Bootstrap Process
 
@@ -149,14 +151,15 @@ These map to `/include/{language}/*.ccc` files bundled in the jar.
 
 The `examples/` directory contains production-quality grammars:
 
-- **java/** (4.4MB) - Complete Java grammar up to JDK 24, with JDK 8/11/17/21 variants
-- **python/** (13MB) - Full Python language support
-- **csharp/** (14MB) - Complete C# language support
-- **lua/** (580KB) - Lua 5.4.4, validated on 460K+ lines of WoW code
-- **json/** (1.4MB) - JSON and JSONC (with comments) parsers
-- **preprocessor/** (2MB) - C-style preprocessor
-- **cics/** (100KB) - CICS language
-- **arithmetic/** (20KB) - Simple arithmetic (good starting point)
+- **java/** - Complete Java grammar up to JDK 24, with JDK 8/11/17/21 variants
+- **python/** - Full Python language support
+- **csharp/** - Complete C# language support
+- **lua/** - Lua 5.4.4, validated on 460K+ lines of WoW code
+- **json/** - JSON and JSONC (with comments) parsers
+- **preprocessor/** - C-style preprocessor
+- **cics/** - CICS language
+- **arithmetic/** - Simple arithmetic (good starting point)
+- **rust-test/** - Rust arithmetic example with generated Rust parser
 
 Start with JSON, then Lua, then Python/Java/C# in order of increasing complexity.
 
@@ -174,10 +177,23 @@ Each example has its own `build.xml` with targets like `clean`, `test`, `test-al
 ### Making Code Generator Changes
 
 1. Edit Java sources in `src/java/org/congocc/`
-2. Edit templates in `src/templates/{java,python,csharp}/*.ctl`
+2. Edit templates in `src/templates/{java,python,csharp,rust}/*.ctl`
 3. Run `ant clean jar` to rebuild
 4. Test generated code with `ant test`
 5. For template changes affecting bootstrap: run `ant update-bootstrap` **twice** to ensure templates are fully updated
+
+### Rust Code Generator Files
+
+The Rust code generator consists of:
+- `src/java/org/congocc/codegen/rust/RustTranslator.java` - Type/naming conversions
+- `src/templates/rust/*.ctl` - Template files generating:
+  - `lib.rs` - Module root with public API
+  - `arena.rs` - Arena allocator for AST nodes (type-safe NodeId/TokenId)
+  - `tokens.rs` - Token type definitions
+  - `lexer.rs` - Lexical analyzer
+  - `parser.rs` - Recursive descent parser
+  - `error.rs` - Error types with location tracking
+  - `Cargo.toml` - Package manifest (Rust 2024 edition)
 
 ### Adding New Features
 

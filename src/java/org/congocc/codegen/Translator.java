@@ -1,6 +1,10 @@
 package org.congocc.codegen;
 
+import java.beans.Expression;
 import java.util.*;
+
+import javax.lang.model.type.PrimitiveType;
+import javax.lang.model.type.ReferenceType;
 
 import org.congocc.core.Grammar;
 import org.congocc.app.AppSettings;
@@ -143,7 +147,7 @@ public class Translator {
             expr.setParent(this);
         }
 
-        private void setRhs(ASTExpression expr) {
+        private void setRhs(ASTExpression expr) {ar
             rhs = expr;
             rhs.setParent(this);
         }
