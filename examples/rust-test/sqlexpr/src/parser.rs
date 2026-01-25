@@ -1,6 +1,6 @@
 //! Parser implementation for SQL expressions
 
-use crate::arena::{Arena, AstNode, NodeId, TokenId, ComparisonOp};
+use crate::arena::{Arena, AstNode, NodeId, TokenId, ComparisonOp, AdditiveOp, MultiplicativeOp};
 use crate::arena::{
     SqlExpressionNode, OrExpressionNode, AndExpressionNode, NotExpressionNode,
     ComparisonExpressionNode, ValueListNode, AdditiveExpressionNode,
@@ -22,12 +22,14 @@ pub struct Parser {
     arena: Arena,
     /// Current token ID
     current_token_id: Option<TokenId>,
+    /// Original input string (for AST processing and pretty-printing)
+    input: String,
 }
 
 impl Parser {
     /// Create a new parser for the given input
     pub fn new(input: String) -> ParseResult<Self> {
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new(input.clone());
         let current_token = lexer.next_token()?;
 
         Ok(Parser {
@@ -36,6 +38,7 @@ impl Parser {
             lookahead: Vec::new(),
             arena: Arena::new(),
             current_token_id: None,
+            input,
         })
     }
 
@@ -47,6 +50,11 @@ impl Parser {
     /// Get a mutable reference to the arena
     pub fn arena_mut(&mut self) -> &mut Arena {
         &mut self.arena
+    }
+
+    /// Get the original input string
+    pub fn input(&self) -> &str {
+        &self.input
     }
 
     /// Parse the input and return the root node ID
@@ -276,6 +284,7 @@ impl Parser {
     fn parse_additive_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();
+        let mut operators = Vec::new();
 
         let first = self.parse_multiplicative_expression()?;
         children.push(first);
@@ -283,6 +292,14 @@ impl Parser {
         while self.current_token.token_type == TokenType::PLUS
             || self.current_token.token_type == TokenType::MINUS
         {
+            // Store the operator before consuming
+            let op = match self.current_token.token_type {
+                TokenType::PLUS => AdditiveOp::Add,
+                TokenType::MINUS => AdditiveOp::Sub,
+                _ => unreachable!(),
+            };
+            operators.push(op);
+
             self.consume_token()?;
             let child = self.parse_multiplicative_expression()?;
             children.push(child);
@@ -291,6 +308,7 @@ impl Parser {
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = AdditiveExpressionNode::new(begin_token, end_token);
         node.children = children.clone();
+        node.operators = operators;
 
         let node_id = self.arena.alloc_node(AstNode::AdditiveExpression(node));
         for child in children {
@@ -303,6 +321,7 @@ impl Parser {
     fn parse_multiplicative_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();
+        let mut operators = Vec::new();
 
         let first = self.parse_unary_expression()?;
         children.push(first);
@@ -310,6 +329,14 @@ impl Parser {
         while self.current_token.token_type == TokenType::STAR
             || self.current_token.token_type == TokenType::SLASH
         {
+            // Store the operator before consuming
+            let op = match self.current_token.token_type {
+                TokenType::STAR => MultiplicativeOp::Mul,
+                TokenType::SLASH => MultiplicativeOp::Div,
+                _ => unreachable!(),
+            };
+            operators.push(op);
+
             self.consume_token()?;
             let child = self.parse_unary_expression()?;
             children.push(child);
@@ -318,6 +345,7 @@ impl Parser {
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = MultiplicativeExpressionNode::new(begin_token, end_token);
         node.children = children.clone();
+        node.operators = operators;
 
         let node_id = self.arena.alloc_node(AstNode::MultiplicativeExpression(node));
         for child in children {

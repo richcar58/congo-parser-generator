@@ -133,14 +133,16 @@ fn test_parentheses_both_sides() {
     assert!(parser.parse().is_ok(), "Parentheses on both sides should parse");
 }
 
-// ===========================================d fail");
-}
+// ============================================================================
+// NEGATIVE TESTS - Invalid expressions that should fail
+// ============================================================================
 
 #[test]
 fn test_invalid_operator_only() {
-    let mut parser = Parser::new("+".to_string(=================================
-// NEGATIVE TESTS - Invalid expressions that should fail
-// ============================================================================
+    let mut parser = Parser::new("+".to_string()).unwrap();
+    let result = parser.parse();
+    assert!(result.is_err(), "Operator only should fail");
+}
 
 #[test]
 fn test_invalid_missing_operand() {
@@ -203,13 +205,6 @@ fn test_invalid_only_spaces() {
     let mut parser = Parser::new("   ".to_string()).unwrap();
     let result = parser.parse();
     assert!(result.is_err(), "Only spaces should fail");
-}
-
-#[test]
-fn test_invalid_operator_only() {
-    let mut parser = Parser::new("+".to_string()).unwrap();
-    let result = parser.parse();
-    assert!(result.is_err(), "Operator only should fail");
 }
 
 #[test]
@@ -346,13 +341,13 @@ fn test_ast_parent_links() {
 fn test_pretty_print_simple() {
     let mut parser = Parser::new("42".to_string()).unwrap();
     let root = parser.parse().unwrap();
-    let output = parser.arena().pretty_print(root, 0);
+    let output = parser.arena().pretty_print(root, 0, parser.input());
 
     println!("Pretty print output:\n{}", output);
 
-    assert!(output.contains("Expression"), "Output should contain 'Expression'");
-    assert!(output.contains("AdditiveExpression"), "Output should contain 'AdditiveExpression'");
-    assert!(output.contains("MultiplicativeExpression"), "Output should contain 'MultiplicativeExpression'");
+    // Should show the original input
+    assert!(output.contains("AST: \"42\""), "Output should show original input");
+    // Should contain the Primary node with the value
     assert!(output.contains("Primary"), "Output should contain 'Primary'");
     assert!(output.contains("42"), "Output should contain '42'");
 }
@@ -361,10 +356,13 @@ fn test_pretty_print_simple() {
 fn test_pretty_print_addition() {
     let mut parser = Parser::new("1 + 2".to_string()).unwrap();
     let root = parser.parse().unwrap();
-    let output = parser.arena().pretty_print(root, 0);
+    let output = parser.arena().pretty_print(root, 0, parser.input());
 
     println!("Pretty print output:\n{}", output);
 
+    // Should show the original input and the + operator
+    assert!(output.contains("AST: \"1 + 2\""), "Output should show original input");
+    assert!(output.contains("[+]"), "Output should show the + operator");
     // Should have two Primary nodes
     let primary_count = output.matches("Primary").count();
     assert!(primary_count >= 2, "1 + 2 should have at least 2 Primary nodes, found {}", primary_count);
@@ -374,10 +372,12 @@ fn test_pretty_print_addition() {
 fn test_pretty_print_complex() {
     let mut parser = Parser::new("(1 + 2) * 3".to_string()).unwrap();
     let root = parser.parse().unwrap();
-    let output = parser.arena().pretty_print(root, 0);
+    let output = parser.arena().pretty_print(root, 0, parser.input());
 
     println!("Pretty print output:\n{}", output);
 
+    // Should show original input and operators
+    assert!(output.contains("AST: \"(1 + 2) * 3\""), "Output should show original input");
     // Should have three Primary nodes for 1, 2, and 3
     let primary_count = output.matches("Primary").count();
     assert!(primary_count >= 3, "(1 + 2) * 3 should have at least 3 Primary nodes, found {}", primary_count);

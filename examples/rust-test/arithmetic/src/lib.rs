@@ -49,3 +49,7 @@ pub use arena::ExpressionNode;
 pub use arena::AdditiveExpressionNode;
 pub use arena::MultiplicativeExpressionNode;
 pub use arena::PrimaryNode;
+
+// Re-export operator enums
+pub use arena::AdditiveOp;
+pub use arena::MultiplicativeOp;

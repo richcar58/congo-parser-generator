@@ -56,14 +56,78 @@ impl Arena {
         &self.tokens[id.0]
     }
 
-    /// Pretty print the AST starting from the given node
-    pub fn pretty_print(&self, root: NodeId, indent: usize) -> String {
-        let mut result = String::new();
-        self.pretty_print_impl(root, indent, &mut result);
+    // ========== Typed Accessor Methods ==========
+
+    /// Get a typed reference to an Expression node
+    pub fn get_expression(&self, id: NodeId) -> Option<&ExpressionNode> {
+        match self.get_node(id) {
+            AstNode::Expression(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    /// Get a typed reference to an AdditiveExpression node
+    pub fn get_additive(&self, id: NodeId) -> Option<&AdditiveExpressionNode> {
+        match self.get_node(id) {
+            AstNode::AdditiveExpression(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    /// Get a typed reference to a MultiplicativeExpression node
+    pub fn get_multiplicative(&self, id: NodeId) -> Option<&MultiplicativeExpressionNode> {
+        match self.get_node(id) {
+            AstNode::MultiplicativeExpression(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    /// Get a typed reference to a Primary node
+    pub fn get_primary(&self, id: NodeId) -> Option<&PrimaryNode> {
+        match self.get_node(id) {
+            AstNode::Primary(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    // ========== Pretty Print ==========
+
+    /// Pretty print the AST starting from the given node, with the original input
+    pub fn pretty_print(&self, root: NodeId, indent: usize, input: &str) -> String {
+        let mut result = format!("AST: \"{}\"\n", input);
+        self.pretty_print_impl(root, indent + 1, &mut result);
         result
     }
 
+    /// Check if a node is a pass-through (single child, no semantic value)
+    fn is_passthrough(&self, node_id: NodeId) -> bool {
+        match self.get_node(node_id) {
+            AstNode::Expression(n) => n.children.len() == 1,
+            AstNode::AdditiveExpression(n) => n.children.len() == 1 && n.operators.is_empty(),
+            AstNode::MultiplicativeExpression(n) => n.children.len() == 1 && n.operators.is_empty(),
+            AstNode::Primary(_) => false,
+        }
+    }
+
+    /// Get the first child of a node (if any)
+    fn first_child(&self, node_id: NodeId) -> Option<NodeId> {
+        match self.get_node(node_id) {
+            AstNode::Expression(n) => n.children.first().copied(),
+            AstNode::AdditiveExpression(n) => n.children.first().copied(),
+            AstNode::MultiplicativeExpression(n) => n.children.first().copied(),
+            AstNode::Primary(n) => n.children.first().copied(),
+        }
+    }
+
     fn pretty_print_impl(&self, node_id: NodeId, indent: usize, result: &mut String) {
+        // Skip pass-through nodes
+        if self.is_passthrough(node_id) {
+            if let Some(child) = self.first_child(node_id) {
+                self.pretty_print_impl(child, indent, result);
+            }
+            return;
+        }
+
         let indent_str = "  ".repeat(indent);
         match self.get_node(node_id) {
             AstNode::Expression(node) => {
@@ -73,13 +137,34 @@ impl Arena {
                 }
             }
             AstNode::AdditiveExpression(node) => {
-                result.push_str(&format!("{}AdditiveExpression\n", indent_str));
+                // Show operator(s) if present
+                let ops: Vec<&str> = node.operators.iter()
+                    .map(|op| match op {
+                        AdditiveOp::Add => "+",
+                        AdditiveOp::Sub => "-",
+                    })
+                    .collect();
+                if ops.is_empty() {
+                    result.push_str(&format!("{}AdditiveExpression\n", indent_str));
+                } else {
+                    result.push_str(&format!("{}AdditiveExpression [{}]\n", indent_str, ops.join(", ")));
+                }
                 for child in &node.children {
                     self.pretty_print_impl(*child, indent + 1, result);
                 }
             }
             AstNode::MultiplicativeExpression(node) => {
-                result.push_str(&format!("{}MultiplicativeExpression\n", indent_str));
+                let ops: Vec<&str> = node.operators.iter()
+                    .map(|op| match op {
+                        MultiplicativeOp::Mul => "*",
+                        MultiplicativeOp::Div => "/",
+                    })
+                    .collect();
+                if ops.is_empty() {
+                    result.push_str(&format!("{}MultiplicativeExpression\n", indent_str));
+                } else {
+                    result.push_str(&format!("{}MultiplicativeExpression [{}]\n", indent_str, ops.join(", ")));
+                }
                 for child in &node.children {
                     self.pretty_print_impl(*child, indent + 1, result);
                 }
@@ -140,13 +225,24 @@ impl ExpressionNode {
     }
 }
 
+/// Operator for additive expressions
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdditiveOp {
+    /// Addition (+)
+    Add,
+    /// Subtraction (-)
+    Sub,
+}
+
 /// AST node for AdditiveExpression production
 #[derive(Debug, Clone)]
 pub struct AdditiveExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
-    /// Child nodes
+    /// Child nodes (operands)
     pub children: Vec<NodeId>,
+    /// Operators between children: operators[i] is between children[i] and children[i+1]
+    pub operators: Vec<AdditiveOp>,
     /// First token of this node
     pub begin_token: TokenId,
     /// Last token of this node
@@ -159,10 +255,45 @@ impl AdditiveExpressionNode {
         AdditiveExpressionNode {
             parent: None,
             children: Vec::new(),
+            operators: Vec::new(),
             begin_token,
             end_token,
         }
     }
+
+    /// Get the left operand (first child)
+    pub fn left<'a>(&self, arena: &'a Arena) -> &'a AstNode {
+        arena.get_node(self.children[0])
+    }
+
+    /// Get the right operand (second child for binary case)
+    pub fn right<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.get(1).map(|id| arena.get_node(*id))
+    }
+
+    /// Get operator at index (between children[i] and children[i+1])
+    pub fn op(&self, index: usize) -> Option<AdditiveOp> {
+        self.operators.get(index).copied()
+    }
+
+    /// Get first operator (for binary expressions)
+    pub fn first_op(&self) -> Option<AdditiveOp> {
+        self.operators.first().copied()
+    }
+
+    /// Iterator over (operator, operand) pairs after the first operand
+    pub fn op_operand_pairs(&self) -> impl Iterator<Item = (AdditiveOp, NodeId)> + '_ {
+        self.operators.iter().copied().zip(self.children.iter().skip(1).copied())
+    }
+}
+
+/// Operator for multiplicative expressions
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MultiplicativeOp {
+    /// Multiplication (*)
+    Mul,
+    /// Division (/)
+    Div,
 }
 
 /// AST node for MultiplicativeExpression production
@@ -170,8 +301,10 @@ impl AdditiveExpressionNode {
 pub struct MultiplicativeExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
-    /// Child nodes
+    /// Child nodes (operands)
     pub children: Vec<NodeId>,
+    /// Operators between children: operators[i] is between children[i] and children[i+1]
+    pub operators: Vec<MultiplicativeOp>,
     /// First token of this node
     pub begin_token: TokenId,
     /// Last token of this node
@@ -184,9 +317,35 @@ impl MultiplicativeExpressionNode {
         MultiplicativeExpressionNode {
             parent: None,
             children: Vec::new(),
+            operators: Vec::new(),
             begin_token,
             end_token,
         }
+    }
+
+    /// Get the left operand (first child)
+    pub fn left<'a>(&self, arena: &'a Arena) -> &'a AstNode {
+        arena.get_node(self.children[0])
+    }
+
+    /// Get the right operand (second child for binary case)
+    pub fn right<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.get(1).map(|id| arena.get_node(*id))
+    }
+
+    /// Get operator at index (between children[i] and children[i+1])
+    pub fn op(&self, index: usize) -> Option<MultiplicativeOp> {
+        self.operators.get(index).copied()
+    }
+
+    /// Get first operator (for binary expressions)
+    pub fn first_op(&self) -> Option<MultiplicativeOp> {
+        self.operators.first().copied()
+    }
+
+    /// Iterator over (operator, operand) pairs after the first operand
+    pub fn op_operand_pairs(&self) -> impl Iterator<Item = (MultiplicativeOp, NodeId)> + '_ {
+        self.operators.iter().copied().zip(self.children.iter().skip(1).copied())
     }
 }
 
@@ -212,6 +371,11 @@ impl PrimaryNode {
             begin_token,
             end_token,
         }
+    }
+
+    /// Get the token image (the actual value as string)
+    pub fn value<'a>(&self, arena: &'a Arena) -> &'a str {
+        &arena.get_token(self.begin_token).image
     }
 }
 

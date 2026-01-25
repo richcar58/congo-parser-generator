@@ -380,11 +380,14 @@ fn test_ast_comparison_op() {
 fn test_pretty_print_simple() {
     let mut parser = Parser::new("x = 1".to_string()).unwrap();
     let root = parser.parse().unwrap();
-    let output = parser.arena().pretty_print(root, 0);
+    let output = parser.arena().pretty_print(root, 0, parser.input());
 
     println!("Pretty print output:\n{}", output);
 
-    assert!(output.contains("SqlExpression"), "Should contain SqlExpression");
+    // Should show the original input
+    assert!(output.contains("AST: \"x = 1\""), "Should show original input");
+    // Should show the comparison operator
+    assert!(output.contains("[=]"), "Should show the = operator");
     assert!(output.contains("ComparisonExpression"), "Should contain ComparisonExpression");
     assert!(output.contains("PrimaryExpression"), "Should contain PrimaryExpression");
 }
@@ -393,10 +396,12 @@ fn test_pretty_print_simple() {
 fn test_pretty_print_and() {
     let mut parser = Parser::new("x = 1 AND y = 2".to_string()).unwrap();
     let root = parser.parse().unwrap();
-    let output = parser.arena().pretty_print(root, 0);
+    let output = parser.arena().pretty_print(root, 0, parser.input());
 
     println!("Pretty print output:\n{}", output);
 
+    // Should show the original input
+    assert!(output.contains("AST: \"x = 1 AND y = 2\""), "Should show original input");
     assert!(output.contains("AndExpression"), "Should contain AndExpression");
     // Should have at least 2 PrimaryExpression nodes (x and y, or more)
     let primary_count = output.matches("PrimaryExpression").count();
@@ -408,11 +413,12 @@ fn test_pretty_print_complex() {
     let input = "active = true AND price > 100".to_string();
     let mut parser = Parser::new(input).unwrap();
     let root = parser.parse().unwrap();
-    let output = parser.arena().pretty_print(root, 0);
+    let output = parser.arena().pretty_print(root, 0, parser.input());
 
     println!("Pretty print output:\n{}", output);
 
-    assert!(output.contains("SqlExpression"), "Should contain SqlExpression");
+    // Should show the original input
+    assert!(output.contains("AST:"), "Should show original input");
     assert!(output.contains("AndExpression"), "Should contain AndExpression");
 }
 

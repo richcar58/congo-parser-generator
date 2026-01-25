@@ -17,7 +17,7 @@
 //!     let input = "price > 100 AND status = 'active'".to_string();
 //!     let mut parser = Parser::new(input)?;
 //!     let root = parser.parse()?;
-//!     println!("{}", parser.arena().pretty_print(root, 0));
+//!     println!("{}", parser.arena().pretty_print(root, 0, parser.input()));
 //!     Ok(())
 //! }
 //! ```
@@ -49,3 +49,6 @@ pub use arena::{
     ComparisonExpressionNode, ValueListNode, AdditiveExpressionNode,
     MultiplicativeExpressionNode, UnaryExpressionNode, PrimaryExpressionNode,
 };
+
+// Re-export operator enums
+pub use arena::{AdditiveOp, MultiplicativeOp};

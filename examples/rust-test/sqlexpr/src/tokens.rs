@@ -3,6 +3,8 @@
 use crate::arena::TokenId;
 
 /// All token types in the SQL expression grammar
+#[allow(non_camel_case_types)]
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenType {
     // Keywords (case insensitive)
@@ -86,6 +88,7 @@ impl std::fmt::Display for TokenType {
 /// Lexical state for context-sensitive tokenization
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LexicalState {
+    /// Default lexical state
     #[default]
     DEFAULT,
 }

@@ -28,3 +28,18 @@ Finally, both example parsers should include two types of integration tests.  Th
 The ultimate goal is to complete the implementation of the rust parser generator with arena allocation support, to provide illustrative examples that validate the generated parsers, and to generate complete and up-to-date documentation. 
 
 Please develop a plan to implement arena support and present the plan for review.  Also, record in a file all learnings in .claude/Learnings.md.
+
+## Enhancing AST Capabilities
+
+The generated Rust parsers can be use in two ways.  In README.md, the two usages patterns are shown under the *Basic Usage* and the *Working with AST Nodes (Arena-based)* headings.  The Basic Usage pattern is most appropriate for simply checking if a string is accepted by the parser.  The Arena-based pattern is used when the parsed input needs to be processed.  In this case, the caller obtains the root node of an AST, which can then be processed node by node using a depth first tree traversal.  As an example of AST traversal, each generated parser already comes with support for pretty printing the parsed input's AST.
+
+Working with AST nodes can be made more straightforward by abstracting translations from NodeId or TokenId types.  Here are the requirements for enhanced Arena-based node traversal:
+
+1. Each generated parser should save a copy of the original input string.  This string is publicly accessible including when the AST is being processed.  
+2. Each AstNode should preserve and make easily accessible all information extracted during parsing.  In particular, the operators and operands of an expression node should be easily accessible.  For example, in the examples/rust-test/arithmetic directory, the *AdditiveExpressionNode* defined in arena.rs has *children*, *being_token* and *end_token* fields.  These fields have NodeId or TokenId types, which require translation to node types to extract the values present in the original input string.  In this case, it would be more convenient to supply *op()*, *left_operand()* and *right_operand()* methods for AST processing code to use.  Generally speaking, when processing code traverses an AST it should work with node types (e.g., MultiplicativeExpressionNode, ComparisonExpressionNode) rather than ID types (i.e., NodeId or TokenId).
+3. The *pretty_print_impl()* method in the arithmetic and sqlexpr examples should be modified so that:
+    1. The original input string is printed as part of the first line (i.e., the "AST:" line).
+    2. Specific operator or operand values are always printed for nodes that have those values assigned.
+    3. To reduce the output clutter, pass through nodes in the AST that have no assigned values except for a single child node should not be printed.
+
+Allowing AST processing to work at the abstraction level of nodes rather than IDs should not impact performance.  Currently, the burden is on the processing code to translate ID types to node types.  This burden is simply shifted to generated parser code that AST processing code can call if it needs to.  Please develop a plan for these AST enhancements and present the plan for review.  Also, append all learnings to .claude/Learnings.md.

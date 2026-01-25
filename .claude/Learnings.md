@@ -251,6 +251,153 @@ examples/rust-test/
         └── integration_test.rs
 ```
 
+## Enhanced AST Capabilities
+
+### Storing Original Input
+
+Store the original input string in the Parser for AST processing and pretty-printing:
+
+```rust
+pub struct Parser {
+    // ... other fields
+    input: String,  // Original input string
+}
+
+impl Parser {
+    pub fn new(input: String) -> ParseResult<Self> {
+        let mut lexer = Lexer::new(input.clone());  // Clone before moving
+        // ...
+        Ok(Parser { /* ... */ input })
+    }
+
+    pub fn input(&self) -> &str { &self.input }
+}
+```
+
+### Operator Storage Pattern
+
+For expression nodes that have operators (e.g., `AdditiveExpression`, `MultiplicativeExpression`), store operators in a parallel vector:
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdditiveOp {
+    Add,  // +
+    Sub,  // -
+}
+
+pub struct AdditiveExpressionNode {
+    pub children: Vec<NodeId>,
+    pub operators: Vec<AdditiveOp>,  // operators[i] is between children[i] and children[i+1]
+    // ... other fields
+}
+```
+
+**Key insight**: For N operands, there are N-1 operators. The operators vector stores these in order.
+
+Example: `1 + 2 - 3` results in:
+- `children: [node1, node2, node3]`
+- `operators: [Add, Sub]`
+
+### Accessor Methods
+
+Provide convenient accessor methods that work with the Arena:
+
+```rust
+impl AdditiveExpressionNode {
+    /// Get the left operand (first child)
+    pub fn left<'a>(&self, arena: &'a Arena) -> &'a AstNode {
+        arena.get_node(self.children[0])
+    }
+
+    /// Get the right operand (second child for binary case)
+    pub fn right<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.get(1).map(|id| arena.get_node(*id))
+    }
+
+    /// Get first operator (for binary expressions)
+    pub fn first_op(&self) -> Option<AdditiveOp> {
+        self.operators.first().copied()
+    }
+}
+```
+
+**Design choice**: Accessor methods take `&Arena` as parameter to avoid lifetime complexity. This keeps node structs simple while enabling convenient access.
+
+### Pass-Through Node Detection
+
+A "pass-through" node is one with no semantic value except a single child. These clutter pretty-print output:
+
+```rust
+fn is_passthrough(&self, node_id: NodeId) -> bool {
+    match self.get_node(node_id) {
+        AstNode::Expression(n) => n.children.len() == 1,
+        AstNode::AdditiveExpression(n) => n.children.len() == 1 && n.operators.is_empty(),
+        AstNode::MultiplicativeExpression(n) => n.children.len() == 1 && n.operators.is_empty(),
+        _ => false,
+    }
+}
+```
+
+In pretty_print, skip pass-through nodes and recurse directly to their child:
+
+```rust
+if self.is_passthrough(node_id) {
+    if let Some(child) = self.first_child(node_id) {
+        self.pretty_print_impl(child, indent, result);  // Same indent level
+    }
+    return;
+}
+```
+
+### Enhanced Pretty-Print
+
+The improved pretty_print shows:
+1. Original input on the first line
+2. Operators/values in brackets for nodes that have them
+3. Collapsed pass-through nodes for cleaner output
+
+```rust
+pub fn pretty_print(&self, root: NodeId, indent: usize, input: &str) -> String {
+    let mut result = format!("AST for: \"{}\"\n", input);
+    self.pretty_print_impl(root, indent, &mut result);
+    result
+}
+```
+
+**Before** (cluttered):
+```
+Expression
+  AdditiveExpression
+    MultiplicativeExpression
+      Primary("1")
+    MultiplicativeExpression
+      Primary("2")
+```
+
+**After** (enhanced):
+```
+AST for: "1 + 2"
+AdditiveExpression [+]
+  Primary("1")
+  Primary("2")
+```
+
+### Typed Arena Accessors
+
+Add typed getter methods to Arena for convenience:
+
+```rust
+impl Arena {
+    pub fn get_additive(&self, id: NodeId) -> Option<&AdditiveExpressionNode> {
+        match self.get_node(id) {
+            AstNode::AdditiveExpression(node) => Some(node),
+            _ => None,
+        }
+    }
+    // Similar methods for other node types...
+}
+```
+
 ## Summary
 
 Key principles for Rust parser generation:
@@ -259,3 +406,7 @@ Key principles for Rust parser generation:
 3. **Result types** provide clean error propagation
 4. **Explicit parent setting** after node allocation maintains tree relationships
 5. **Token span tracking** (`begin_token`, `end_token`) enables source location reporting
+6. **Original input storage** enables AST processing to access source text
+7. **Operator storage** preserves semantic information that would otherwise be lost
+8. **Accessor methods** provide node-level convenience while avoiding lifetime issues
+9. **Pass-through detection** enables cleaner pretty-print output
