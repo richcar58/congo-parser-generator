@@ -43,3 +43,7 @@ Working with AST nodes can be made more straightforward by abstracting translati
     3. To reduce the output clutter, pass through nodes in the AST that have no assigned values except for a single child node should not be printed.
 
 Allowing AST processing to work at the abstraction level of nodes rather than IDs should not impact performance.  Currently, the burden is on the processing code to translate ID types to node types.  This burden is simply shifted to generated parser code that AST processing code can call if it needs to.  Please develop a plan for these AST enhancements and present the plan for review.  Also, append all learnings to .claude/Learnings.md.
+
+### Promulgating AST Enhancements
+
+Please investigate how the AST enhancements just generated for rust-test/arithmetic and rust-test/sqlexpr can be back ported to the parser-generator source code that generates rust parsers.  The goal is that all the recent enhancements to the example code should be part of any parser generated in rust. Please develop a plan for back porting and present the plan for review.  Also, append all learnings to .claude/Learnings.md.

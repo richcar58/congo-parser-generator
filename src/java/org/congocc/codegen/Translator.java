@@ -1,6 +1,6 @@
 package org.congocc.codegen;
 
-import java.beans.Expression;
+// Expression class comes from org.congocc.parser.tree.*
 import java.util.*;
 
 import javax.lang.model.type.PrimitiveType;
@@ -147,7 +147,7 @@ public class Translator {
             expr.setParent(this);
         }
 
-        private void setRhs(ASTExpression expr) {ar
+        private void setRhs(ASTExpression expr) {
             rhs = expr;
             rhs.setParent(this);
         }

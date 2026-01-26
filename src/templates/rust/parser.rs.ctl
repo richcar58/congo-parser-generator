@@ -3,6 +3,7 @@
 use crate::error::{ParseError, ParseResult};
 use crate::tokens::{Token, TokenType};
 use crate::lexer::Lexer;
+use crate::arena::{Arena, NodeId, TokenId};
 
 /// The parser for ${settings.parserClassName}
 pub struct Parser {
@@ -12,19 +13,38 @@ pub struct Parser {
     current_token: Token,
     /// Lookahead tokens
     lookahead: Vec<Token>,
+    /// Arena owning all AST nodes and tokens
+    arena: Arena,
+    /// ID of the most recently allocated token
+    current_token_id: Option<TokenId>,
+    /// Original input string
+    input: String,
 }
 
 impl Parser {
     /// Create a new parser for the given input
     pub fn new(input: String) -> ParseResult<Self> {
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new(input.clone());
         let current_token = lexer.next_token()?;
 
         Ok(Parser {
             lexer,
             current_token,
             lookahead: Vec::new(),
+            arena: Arena::new(),
+            current_token_id: None,
+            input,
         })
+    }
+
+    /// Get a reference to the arena containing all AST nodes
+    pub fn arena(&self) -> &Arena {
+        &self.arena
+    }
+
+    /// Get the original input string
+    pub fn input(&self) -> &str {
+        &self.input
     }
 
 [#if grammar.productionTable?size > 0]
@@ -86,5 +106,12 @@ impl Parser {
         }
 
         Ok(&self.lookahead[n - 1])
+    }
+
+    /// Allocate the current token to the arena and track its ID
+    fn alloc_current_token(&mut self) -> TokenId {
+        let token_id = self.arena.alloc_token(self.current_token.clone());
+        self.current_token_id = Some(token_id);
+        token_id
     }
 }

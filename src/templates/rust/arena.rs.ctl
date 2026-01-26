@@ -55,6 +55,71 @@ impl Arena {
     pub fn get_token(&self, id: TokenId) -> &Token {
         &self.tokens[id.0]
     }
+
+[#if grammar.productionTable?size > 0]
+    /// Pretty print the AST starting from the given node
+    pub fn pretty_print(&self, root: NodeId, indent: usize, input: &str) -> String {
+        let mut result = format!("AST: \"{}\"\n", input);
+        self.pretty_print_impl(root, indent + 1, &mut result);
+        result
+    }
+
+    /// Check if a node is a pass-through (single child, no semantic value)
+    fn is_passthrough(&self, node_id: NodeId) -> bool {
+        match self.get_node(node_id) {
+[#list grammar.parserProductions as production]
+            AstNode::${production.name?cap_first}(n) => n.children.len() == 1 && n.operators.is_empty(),
+[/#list]
+        }
+    }
+
+    /// Get the first child of a node (if any)
+    fn first_child(&self, node_id: NodeId) -> Option<NodeId> {
+        match self.get_node(node_id) {
+[#list grammar.parserProductions as production]
+            AstNode::${production.name?cap_first}(n) => n.children.first().copied(),
+[/#list]
+        }
+    }
+
+    fn pretty_print_impl(&self, node_id: NodeId, indent: usize, result: &mut String) {
+        // Skip pass-through nodes
+        if self.is_passthrough(node_id) {
+            if let Some(child) = self.first_child(node_id) {
+                self.pretty_print_impl(child, indent, result);
+            }
+            return;
+        }
+
+        let indent_str = "  ".repeat(indent);
+        match self.get_node(node_id) {
+[#list grammar.parserProductions as production]
+            AstNode::${production.name?cap_first}(node) => {
+                if node.children.is_empty() {
+                    // Leaf node - show the token value
+                    let value = &self.get_token(node.begin_token).image;
+                    result.push_str(&format!("{}${production.name?cap_first}(\"{}\")\n", indent_str, value));
+                } else if node.operators.is_empty() {
+                    // Internal node without operators
+                    result.push_str(&format!("{}${production.name?cap_first}\n", indent_str));
+                    for child in &node.children {
+                        self.pretty_print_impl(*child, indent + 1, result);
+                    }
+                } else {
+                    // Internal node with operators
+                    let ops: Vec<&str> = node.operators.iter()
+                        .map(|tid| self.get_token(*tid).image.as_str())
+                        .collect();
+                    result.push_str(&format!("{}${production.name?cap_first} [{}]\n", indent_str, ops.join(", ")));
+                    for child in &node.children {
+                        self.pretty_print_impl(*child, indent + 1, result);
+                    }
+                }
+            }
+[/#list]
+        }
+    }
+[/#if]
 }
 
 impl Default for Arena {
@@ -82,6 +147,8 @@ pub struct ${production.name?cap_first}Node {
     pub parent: Option<NodeId>,
     /// Child nodes
     pub children: Vec<NodeId>,
+    /// Operator tokens between children: operators[i] is between children[i] and children[i+1]
+    pub operators: Vec<TokenId>,
     /// First token of this node
     pub begin_token: TokenId,
     /// Last token of this node
@@ -94,9 +161,35 @@ impl ${production.name?cap_first}Node {
         ${production.name?cap_first}Node {
             parent: None,
             children: Vec::new(),
+            operators: Vec::new(),
             begin_token,
             end_token,
         }
+    }
+
+    /// Get the left operand (first child)
+    pub fn left<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.first().map(|id| arena.get_node(*id))
+    }
+
+    /// Get the right operand (second child, for binary expressions)
+    pub fn right<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.get(1).map(|id| arena.get_node(*id))
+    }
+
+    /// Get the first operator token (for binary expressions)
+    pub fn first_op(&self) -> Option<TokenId> {
+        self.operators.first().copied()
+    }
+
+    /// Get operator token at index (between children[i] and children[i+1])
+    pub fn op(&self, index: usize) -> Option<TokenId> {
+        self.operators.get(index).copied()
+    }
+
+    /// Get the token image of this node's first token (useful for leaf nodes)
+    pub fn value<'a>(&self, arena: &'a Arena) -> &'a str {
+        &arena.get_token(self.begin_token).image
     }
 }
 

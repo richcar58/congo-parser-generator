@@ -410,3 +410,294 @@ Key principles for Rust parser generation:
 7. **Operator storage** preserves semantic information that would otherwise be lost
 8. **Accessor methods** provide node-level convenience while avoiding lifetime issues
 9. **Pass-through detection** enables cleaner pretty-print output
+
+---
+
+## Backporting AST Enhancements to Code Generator
+
+### Template Architecture
+
+CongoCC uses the CTL (Congo Template Language) template engine for code generation. Rust templates are in `src/templates/rust/`:
+
+```
+src/templates/rust/
+├── arena.rs.ctl      # Arena allocator, node structs, pretty_print
+├── parser.rs.ctl     # Parser struct, parse methods
+├── tokens.rs.ctl     # Token types and TokenType enum
+├── lexer.rs.ctl      # Lexer implementation
+├── error.rs.ctl      # Error types
+├── lib.rs.ctl        # Module re-exports
+└── Cargo.toml.ctl    # Rust manifest
+```
+
+### CTL Template Syntax
+
+Templates use Freemarker-like syntax:
+
+```
+[#if condition]
+  // Conditional content
+[/#if]
+
+[#list grammar.parserProductions as production]
+  // Iterate over productions
+  ${production.name?cap_first}  // Capitalize first letter
+[/#list]
+
+${globals::translateIdentifier(name)}  // Call translator function
+```
+
+### Template Variables Available
+
+- `grammar` - Grammar object with productions, lexer data
+- `settings` - AppSettings with parser configuration
+- `globals` - TemplateGlobals with translation methods
+- `lexerData` - Lexical analysis structures
+- `generated_by` - Generator identification string
+
+### RustTranslator.java
+
+The `RustTranslator` class in `src/java/org/congocc/codegen/rust/` handles language-specific translations:
+
+- Type translations: `boolean` → `bool`, `List` → `Vec<NodeId>`
+- Identifier translations: `null` → `None`, camelCase → snake_case
+- Method name conversions: `toString` → `to_string`
+
+### Categorizing Enhancements for Backporting
+
+**Generic Enhancements** (apply to all parsers):
+- Input storage in Parser (`input` field, `input()` accessor)
+- Arena ownership in Parser (`arena` field, `arena()` accessor)
+- Basic `pretty_print()` method structure
+- Token allocation helpers
+- Pass-through detection framework
+
+**Grammar-Aware Enhancements** (require grammar analysis):
+- Operator enum generation (AdditiveOp, ComparisonOp, etc.)
+- Operator storage in node structs (`operators: Vec<OpType>`)
+- Accessor methods (left(), right(), first_op())
+- Production-specific pretty_print formatting
+
+### Strategies for Grammar-Aware Generation
+
+**Option 1: Naming Convention** (simplest)
+```
+// Productions ending in "Expression" get operator support
+[#if production.name?ends_with("Expression")]
+    pub operators: Vec<${production.name?cap_first}Op>,
+[/#if]
+```
+
+**Option 2: Grammar Annotations** (most flexible)
+```
+// In .ccc file:
+AdditiveExpression #operator("+", "-") :
+    MultiplicativeExpression ( (<PLUS> | <MINUS>) MultiplicativeExpression )*
+;
+```
+
+**Option 3: Pattern Detection** (most complex)
+Analyze expansion tree to detect `A (op A)*` patterns automatically.
+
+### Pretty Print Output Format
+
+The standard format for AST pretty printing:
+
+```
+AST: "original input"
+  NodeType [operator]
+    ChildNode
+    ChildNode
+```
+
+Key features:
+1. First line shows original input
+2. Operators displayed in brackets: `[+]`, `[=]`, `[AND x2]`
+3. Pass-through nodes collapsed (single child, no semantic value)
+4. Consistent 2-space indentation
+
+### Documentation Requirements
+
+All generated code should include documentation for:
+- Enum variants (AstNode variants, operator enums)
+- Struct fields (parent, children, begin_token, end_token, operators)
+- Public methods (new(), left(), right(), op(), value())
+- Module-level documentation in lib.rs
+
+### Testing Generated Code
+
+After template changes, verify:
+1. Generated code compiles: `cargo build`
+2. Tests pass: `cargo test`
+3. Pretty print output format correct
+4. Operator storage works for expression nodes
+5. No clippy warnings for missing documentation
+
+---
+
+## Phase 2: Generic Operator Storage Implementation
+
+### Design Decision: TokenId-based Operators
+
+Rather than generating typed operator enums (which requires grammar analysis), Phase 2 uses a generic approach:
+
+```rust
+pub struct ExpressionNode {
+    pub children: Vec<NodeId>,
+    pub operators: Vec<TokenId>,  // Stores token IDs, not typed enums
+    // ...
+}
+```
+
+**Advantages:**
+- Works without grammar analysis
+- Operator token images accessible via `arena.get_token(tid).image`
+- Same pattern applies to all node types
+- Can be enhanced later with typed enums
+
+**Trade-offs:**
+- No compile-time type safety for operator matching
+- Users must inspect token images rather than match on enum variants
+
+### Pass-Through Detection with Operators
+
+A node is pass-through only if it has a single child AND no operators:
+
+```rust
+fn is_passthrough(&self, node_id: NodeId) -> bool {
+    match self.get_node(node_id) {
+        AstNode::Expression(n) => n.children.len() == 1 && n.operators.is_empty(),
+        // ...
+    }
+}
+```
+
+This ensures nodes like `1 + 2` (which has operators) are not collapsed.
+
+### Accessor Methods Pattern
+
+All node types get the same accessor methods:
+
+```rust
+impl ExpressionNode {
+    /// Get the left operand (first child)
+    pub fn left<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.first().map(|id| arena.get_node(*id))
+    }
+
+    /// Get the right operand (second child)
+    pub fn right<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.get(1).map(|id| arena.get_node(*id))
+    }
+
+    /// Get first operator token
+    pub fn first_op(&self) -> Option<TokenId> {
+        self.operators.first().copied()
+    }
+
+    /// Get operator at index
+    pub fn op(&self, index: usize) -> Option<TokenId> {
+        self.operators.get(index).copied()
+    }
+
+    /// Get token image of first token (for leaf nodes)
+    pub fn value<'a>(&self, arena: &'a Arena) -> &'a str {
+        &arena.get_token(self.begin_token).image
+    }
+}
+```
+
+### Enhanced Pretty Print with Operators
+
+Pretty print shows operator token images when present:
+
+```rust
+if node.operators.is_empty() {
+    result.push_str(&format!("{}NodeName\n", indent_str));
+} else {
+    let ops: Vec<&str> = node.operators.iter()
+        .map(|tid| self.get_token(*tid).image.as_str())
+        .collect();
+    result.push_str(&format!("{}NodeName [{}]\n", indent_str, ops.join(", ")));
+}
+```
+
+Example output:
+```
+AST: "1 + 2 * 3"
+AdditiveExpression [+]
+  Primary
+  MultiplicativeExpression [*]
+    Primary
+    Primary
+```
+
+### Template Implementation
+
+The key template changes in `arena.rs.ctl`:
+
+1. Added `operators` field to node struct:
+```
+pub operators: Vec<TokenId>,
+```
+
+2. Initialize in constructor:
+```
+operators: Vec::new(),
+```
+
+3. Updated `is_passthrough` to check `n.operators.is_empty()`
+
+4. Updated `pretty_print_impl` to display operator images
+
+---
+
+## Phase 3: Leaf Node Value Display
+
+### Problem
+
+Without showing leaf node values, pretty_print output like this is not useful for debugging:
+
+```
+AST: "1 + 2"
+AdditiveExpression [+]
+  Primary
+  Primary
+```
+
+### Solution
+
+Detect leaf nodes (nodes with no children) and display their token value:
+
+```rust
+if node.children.is_empty() {
+    // Leaf node - show the token value
+    let value = &self.get_token(node.begin_token).image;
+    result.push_str(&format!("{}NodeName(\"{}\")\n", indent_str, value));
+} else if node.operators.is_empty() {
+    // Internal node without operators
+    result.push_str(&format!("{}NodeName\n", indent_str));
+    // recurse to children...
+} else {
+    // Internal node with operators
+    // show operators and recurse...
+}
+```
+
+### Result
+
+Pretty print now shows useful output:
+
+```
+AST: "1 + 2"
+AdditiveExpression [+]
+  Primary("1")
+  Primary("2")
+```
+
+### Template Change
+
+In `arena.rs.ctl`, the `pretty_print_impl` match arm now has three cases:
+1. **Leaf node** (`children.is_empty()`) - show `NodeName("value")`
+2. **Internal node without operators** - show `NodeName` and recurse
+3. **Internal node with operators** - show `NodeName [ops]` and recurse

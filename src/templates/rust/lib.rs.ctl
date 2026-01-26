@@ -12,13 +12,16 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use ${settings.parserPackage?replace(".", "_")}::*;
 //!
 //! fn main() -> Result<(), ParseError> {
 //!     let input = "your input here".to_string();
 //!     let mut parser = Parser::new(input)?;
-//!     parser.parse()?;
+//!     // parse() returns the root NodeId of the AST
+//!     let root = parser.parse()?;
+//!     // Access AST through the arena, with original input for pretty printing
+//!     println!("{}", parser.arena().pretty_print(root, 0, parser.input()));
 //!     Ok(())
 //! }
 //! ```
