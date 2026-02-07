@@ -159,11 +159,22 @@ The `examples/` directory contains production-quality grammars:
 - **preprocessor/** - C-style preprocessor
 - **cics/** - CICS language
 - **arithmetic/** - Simple arithmetic (good starting point)
-- **rust-test/** - Rust arithmetic example with generated Rust parser
+- **rust-test/** - Rust examples with generated Rust parsers:
+  - `arithmetic/` - Simple arithmetic expression parser
+  - `sqlexpr/` - SQL expression parser (boolean logic, comparisons, LIKE, IN, BETWEEN, IS NULL)
+  - Top-level standalone test executables (`test_arena.rs`, `test_lexer.rs`, `test_parser.rs`)
 
 Start with JSON, then Lua, then Python/Java/C# in order of increasing complexity.
 
 Each example has its own `build.xml` with targets like `clean`, `test`, `test-all`.
+
+**Note:** Rust examples are NOT part of `ant test`. They must be built/tested separately with Cargo:
+
+```bash
+# Build and test Rust examples
+cd examples/rust-test/arithmetic && cargo test
+cd examples/rust-test/sqlexpr && cargo test
+```
 
 ## Development Workflow
 
@@ -194,6 +205,8 @@ The Rust code generator consists of:
   - `parser.rs` - Recursive descent parser
   - `error.rs` - Error types with location tracking
   - `Cargo.toml` - Package manifest (Rust 2024 edition)
+- `src/templates/rust/tests/basic.rs.ctl` - Template for generating boilerplate integration tests
+- Generated Rust parsers include `serde` and `serde_json` as dependencies
 
 ### Adding New Features
 
@@ -232,6 +245,18 @@ GitHub Actions workflow at `.github/workflows/core-tests.yml`:
 - Runs on: Ubuntu, macOS, Windows
 - Java versions: 17, 21
 - Includes Jython and .NET SDK for cross-language testing
+
+## Rust Development Notes
+
+- Rust code generation is newer than Java/Python/C#; no Ant targets exist for Rust yet
+- After modifying Rust templates, regenerate and test manually:
+  ```bash
+  ant clean jar
+  java -jar congocc.jar -lang rust -d examples/rust-test/sqlexpr/src examples/rust-test/sqlexpr/SqlExpr.ccc
+  cd examples/rust-test/sqlexpr && cargo test
+  ```
+- See `claude/claude-plan.md` for the original Rust implementation plan
+- See `.claude/Learnings.md` for lessons learned on arena allocation, parser integration, and template backporting
 
 ## Debugging Tips
 
