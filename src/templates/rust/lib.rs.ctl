@@ -40,6 +40,7 @@ mod arena;
 [#if grammar.productionTable?size > 0]
 mod lexer;
 mod parser;
+mod visitor;
 [/#if]
 
 // Re-export public API
@@ -49,6 +50,7 @@ pub use arena::{Arena, NodeId, TokenId, AstNode};
 [#if grammar.productionTable?size > 0]
 pub use lexer::Lexer;
 pub use parser::Parser;
+pub use visitor::VisitControl;
 
 // Re-export AST node types
 [#list grammar.parserProductions as production]

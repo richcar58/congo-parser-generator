@@ -6,6 +6,7 @@
 //! 3. AST structure tests - verify the shape of the parsed tree
 //! 4. Pretty-print tests - verify pretty-printing of AST
 
+use std::any::Any;
 use sqlexpr::*;
 
 // ============================================================================
@@ -549,4 +550,158 @@ fn test_error_messages_include_expected() {
         "Error should indicate expected token: {}",
         err_str
     );
+}
+
+// ============================================================================
+// VISITOR TESTS - Verify closure-based depth-first visitor
+// ============================================================================
+
+#[test]
+fn test_visitor_count_all_nodes() {
+    let mut parser = Parser::new("x = 1".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+
+    let mut count = 0usize;
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, _depth, _opts| {
+            count += 1;
+            VisitControl::Continue
+        },
+        None,
+    );
+    assert!(count > 0, "Should visit at least one node");
+}
+
+#[test]
+fn test_visitor_depth_correctness() {
+    let mut parser = Parser::new("x = 1".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+
+    let mut depths = Vec::new();
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, depth, _opts| {
+            depths.push(depth);
+            VisitControl::Continue
+        },
+        None,
+    );
+    // Root should be at depth 0
+    assert_eq!(depths[0], 0, "Root should be at depth 0");
+    // All subsequent nodes should be > 0
+    for &d in &depths[1..] {
+        assert!(d > 0, "Non-root nodes should have depth > 0");
+    }
+}
+
+#[test]
+fn test_visitor_skip_children() {
+    let mut parser = Parser::new("x = 1 AND y = 2".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+
+    // Count all nodes
+    let mut total = 0usize;
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, _depth, _opts| {
+            total += 1;
+            VisitControl::Continue
+        },
+        None,
+    );
+
+    // Count nodes, skipping children of the root
+    let mut skip_count = 0usize;
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, depth, _opts| {
+            skip_count += 1;
+            if depth == 0 {
+                VisitControl::SkipChildren
+            } else {
+                VisitControl::Continue
+            }
+        },
+        None,
+    );
+
+    assert_eq!(skip_count, 1, "Should only visit the root when skipping its children");
+    assert!(total > skip_count, "Total should be greater than skip count");
+}
+
+#[test]
+fn test_visitor_stop() {
+    let mut parser = Parser::new("x = 1 AND y = 2".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+
+    // Count all nodes
+    let mut total = 0usize;
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, _depth, _opts| {
+            total += 1;
+            VisitControl::Continue
+        },
+        None,
+    );
+
+    // Stop after 2 nodes
+    let mut stop_count = 0usize;
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, _depth, _opts| {
+            stop_count += 1;
+            if stop_count >= 2 {
+                VisitControl::Stop
+            } else {
+                VisitControl::Continue
+            }
+        },
+        None,
+    );
+
+    assert_eq!(stop_count, 2, "Should stop after visiting 2 nodes");
+    assert!(total > 2, "Total nodes should be more than 2");
+}
+
+#[test]
+fn test_visitor_with_options() {
+    let mut parser = Parser::new("42".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+
+    let label = String::from("my_context");
+    let mut received = false;
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, _depth, opts: Option<&dyn Any>| {
+            if let Some(val) = opts.and_then(|o| o.downcast_ref::<String>()) {
+                if val == "my_context" {
+                    received = true;
+                }
+            }
+            VisitControl::Continue
+        },
+        Some(&label),
+    );
+    assert!(received, "Should receive options in closure");
+}
+
+#[test]
+fn test_visitor_without_options() {
+    let mut parser = Parser::new("42".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+
+    let mut saw_none = false;
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, _depth, opts: Option<&dyn Any>| {
+            if opts.is_none() {
+                saw_none = true;
+            }
+            VisitControl::Continue
+        },
+        None,
+    );
+    assert!(saw_none, "Options should be None when not provided");
 }

@@ -140,7 +140,10 @@ public class FilesGenerator {
                 }
             }
             case RUST -> {
-                // Generate Rust parser files
+                // Generate Rust parser files.
+                // Existing files are not overwritten because the Rust templates
+                // generate scaffolding that users customize by hand. Regeneration
+                // should only create files that don't exist yet (e.g. visitor.rs).
                 String[] paths = new String[]{
                         "lib.rs",
                         "arena.rs",
@@ -148,9 +151,16 @@ public class FilesGenerator {
                         "lexer.rs",
                         "parser.rs",
                         "error.rs",
+                        "visitor.rs",
                         "Cargo.toml"
                 };
                 for (String p : paths) {
+                    if (Files.exists(parserOutputDirectory.resolve(p))) {
+                        if (!appSettings.isQuiet()) {
+                            System.out.println("Skipping: " + parserOutputDirectory.resolve(p).normalize() + " (already exists)");
+                        }
+                        continue;
+                    }
                     generate(parserOutputDirectory, p);
                 }
             }

@@ -36,6 +36,7 @@ mod tokens;
 mod arena;
 mod lexer;
 mod parser;
+mod visitor;
 
 // Re-export public API
 pub use error::{ParseError, ParseResult};
@@ -43,6 +44,7 @@ pub use tokens::{Token, TokenType, LexicalState, TokenSource};
 pub use arena::{Arena, NodeId, TokenId, AstNode};
 pub use lexer::Lexer;
 pub use parser::Parser;
+pub use visitor::VisitControl;
 
 // Re-export AST node types
 pub use arena::ExpressionNode;

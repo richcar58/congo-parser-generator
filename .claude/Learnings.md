@@ -701,3 +701,110 @@ In `arena.rs.ctl`, the `pretty_print_impl` match arm now has three cases:
 1. **Leaf node** (`children.is_empty()`) - show `NodeName("value")`
 2. **Internal node without operators** - show `NodeName` and recurse
 3. **Internal node with operators** - show `NodeName [ops]` and recurse
+
+---
+
+## Phase 4: Visitor Pattern Design
+
+### Research Summary
+
+Four approaches were analyzed for implementing the visitor pattern on arena-based ASTs:
+
+1. **Trait-based visitor** (classic OOP port) - One `visit_*` method per node type in a trait, with `accept()` on Arena dispatching via match
+2. **Closure-based walker** - Single `arena.walk(root, &mut |id, node, arena| { ... })` with `WalkControl` enum
+3. **Depth-first iterator** - `arena.iter_depth_first(root)` yielding `(NodeId, &AstNode)` pairs
+4. **Pre/post visit hooks** - Trait with `pre_visit` and `post_visit` callbacks
+
+### Decision: Closure Walker + Iterator (Approaches B + C)
+
+**Rationale:**
+- Both require minimal template code (one `match` to extract children per `AstNode` variant)
+- The arena.rs.ctl template already generates similar matches for `pretty_print`, `is_passthrough`, and `first_child`
+- Trait-based visitor (A) is too heavyweight for Rust: N methods + N match arms in the trait, and extensive trait hierarchies are less idiomatic
+- Pre/post hooks (D) add complexity without enough benefit over B's `WalkControl` enum
+
+### Closure Walker Design
+
+```rust
+pub enum WalkControl { Continue, SkipChildren, Stop }
+
+impl Arena {
+    pub fn walk<F>(&self, root: NodeId, f: &mut F) -> WalkControl
+    where F: FnMut(NodeId, &AstNode, &Arena) -> WalkControl
+    {
+        let node = self.get_node(root);
+        match f(root, node, self) {
+            WalkControl::Stop => return WalkControl::Stop,
+            WalkControl::SkipChildren => return WalkControl::Continue,
+            WalkControl::Continue => {}
+        }
+        // Clone children to avoid borrow conflict
+        let children: Vec<NodeId> = match node { /* extract .children */ };
+        for child in children {
+            if matches!(self.walk(child, f), WalkControl::Stop) {
+                return WalkControl::Stop;
+            }
+        }
+        WalkControl::Continue
+    }
+}
+```
+
+Key design points:
+- Closure receives `(NodeId, &AstNode, &Arena)` so it can query the arena for tokens, siblings, etc.
+- `WalkControl` enum provides skip-subtree and early-stop capabilities
+- Children must be cloned (as `Vec<NodeId>`) before recursion to avoid holding two borrows on arena
+
+### Depth-First Iterator Design
+
+```rust
+pub struct DepthFirstIter<'a> {
+    arena: &'a Arena,
+    stack: Vec<NodeId>,
+}
+
+impl<'a> Iterator for DepthFirstIter<'a> {
+    type Item = (NodeId, &'a AstNode);
+    fn next(&mut self) -> Option<Self::Item> {
+        let id = self.stack.pop()?;
+        let node = self.arena.get_node(id);
+        let children = match node { /* extract .children */ };
+        self.stack.extend(children.iter().rev()); // reverse for left-to-right order
+        Some((id, node))
+    }
+}
+```
+
+Key design points:
+- Stack-based (not recursive) for pre-order depth-first traversal
+- Children pushed in reverse order so left children are visited first
+- Lazy: only traverses as far as the consumer requests
+- Works with all std iterator combinators (.filter(), .map(), .find(), .count(), etc.)
+- No subtree-skip capability (use walk() for that)
+
+### Java Visitor Pattern (for reference)
+
+CongoCC's Java visitor uses reflection-based dispatch:
+- `Node.Visitor` base class with method cache (`ConcurrentHashMap`)
+- `visit(Node)` finds `visit(SpecificNodeType)` via `Class.getMethod()` at runtime
+- Falls back to `recurse()` if no specific method found
+- No `accept()` methods generated on node classes
+- This approach is NOT applicable to Rust (no reflection)
+
+### Template Implementation Notes
+
+Both walker and iterator need only one grammar-dependent match statement to extract children:
+
+```
+match node {
+    [#list grammar.parserProductions as production]
+    AstNode::${production.name?cap_first}(n) => &n.children,
+    [/#list]
+}
+```
+
+This is the same pattern already used in `is_passthrough`, `first_child`, and `pretty_print_impl`. The `WalkControl` enum and `DepthFirstIter` struct are grammar-independent boilerplate.
+
+### Where to Generate
+
+The visitor code should go in a new `visitor.rs` file (generated from `visitor.rs.ctl` template), with the module added to `lib.rs`. The `WalkControl` enum, `DepthFirstIter` struct, and `Arena` impl methods all belong in this file. Alternatively, the methods could be added directly to `arena.rs.ctl` since they extend `Arena`, but a separate file keeps concerns separated.

@@ -47,3 +47,42 @@ Allowing AST processing to work at the abstraction level of nodes rather than ID
 ### Promulgating AST Enhancements
 
 Please investigate how the AST enhancements just generated for rust-test/arithmetic and rust-test/sqlexpr can be back ported to the parser-generator source code that generates rust parsers.  The goal is that all the recent enhancements to the example code should be part of any parser generated in rust. Please develop a plan for back porting and present the plan for review.  Also, append all learnings to .claude/Learnings.md.
+
+## Implement the Visitor Design Pattern
+
+Analyze different approaches for generating the Visitor design pattern to operate on the node types defined in generated arena.rs files.  The basic requirement is for the parser-generator to create a visitor.rs file for each parser it generates.  This file defines the visitor object that takes a caller supplied function and applies it to each node visited during a depth-first traversal of the specified AST.  
+
+Please research different approaches to implementing the Visitor design pattern in Rust and how they can be applied in this project.  Discuss the pros and cons of each approach and make recommendations.  Once we choose an approach, we'll create a plan.  Also, append all learnings to .claude/Learnings.md.
+
+### Plan the Vistor Implementation 
+
+Please create a plan for an Approach B: Closure-based Walker (Functional) implementation with the following changes:
+
+**CHANGE 1**:  Change WalkControl enum name to VisitControl and change Arena's walk() method name to visit().
+
+**CHANGE 2**:  Replace the current closure type signature on the visit() method: 
+
+    FnMut(NodeId, &AstNode, &Arena) -> VisitControl
+
+with an enhanced signature that allows for (1) a depth counter and (2) an optional parameter of any type:
+
+    FnMut(NodeId, &AstNode, &Arena, usize, Option<&dyn Any) -> VisitControl
+
+The fourth parameter is the **depth** of the node in the AST.  The root node has a depth of 0 and the visitor traversal code automatically increments the depth by 1 on each recursive call of the closure.   
+
+The fifth optional parameter, **options**, is a reference to a dynamic type of the caller's choosing.  By supplying a reference, a closure can share state between its different invocations as well as with the calling code.
+
+### Fix Bug After Visitor Implementation
+
+I try to regenerate the examples/rust-test/arithmetic parser with the visitor implementation doing the following:
+
+    cd examples/rust-test/arithmetic
+    java -jar /home/rich/git/congo-rust/congocc.jar -lang rust SimpleArithmetic.ccc
+
+Methods in the newly generated parser.rs file now have now lost their content.  Instead of actually generating code, the methods have a TODO and return the unit type.  Running "cargo test" causes integration_test.rs to fail. 
+
+The previous working version of the arithmetic example code can be found in the github repository at https://github.com/richcar58/congo-parser-generator.git, so adding the visitor implementation may have caused a regression.
+
+Another interesting point is that examples/rust-test/sqlexpr has the visitor pattern implemented.  Its parser.rs methods are implemented and its integration_test.rs test still works.
+
+So the question can the example parsers be generated with the visitor pattern without invalidating the parser's implementation?

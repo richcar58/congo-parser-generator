@@ -77,9 +77,12 @@ CongoCC generates a complete Rust crate with the following structure:
 - **`arena.rs`** - Arena allocator for AST nodes and tokens
 - **`tokens.rs`** - Token type definitions and enums
 - **`lexer.rs`** - Lexical analyzer (tokenizer)
-- **`parser.rs`** - Recursive descent parser
+- **`parser.rs`** - Recursive descent parser (scaffolding — see note below)
 - **`error.rs`** - Error types with location tracking
+- **`visitor.rs`** - Closure-based depth-first AST visitor
 - **`Cargo.toml`** - Rust package manifest
+
+> **Note on `parser.rs`:** The generated `parser.rs` contains method stubs (`TODO`) for each grammar production. You must implement the parsing logic by hand. The other files (`arena.rs`, `tokens.rs`, `lexer.rs`, `visitor.rs`, etc.) are fully generated from your grammar. When you regenerate, **existing files are not overwritten**, so your hand-written parser logic is preserved and only new files (e.g. `visitor.rs`) are created.
 
 ### Compiling the Generated Parser
 
@@ -225,62 +228,83 @@ cargo build --features serde
 - **Result-based errors**: All parsing operations return `Result<T, ParseError>`
 - **Compile-time checks**: Rust's type system catches errors at compile time
 
-### Example: Arithmetic Parser
+### Rust Examples
 
-Here's a complete example using a simple arithmetic grammar:
+The `examples/rust-test/` directory contains two working Rust parser examples with comprehensive integration tests:
 
-**Grammar file (`Arithmetic.ccc`):**
-```
-PARSER_CLASS="ArithmeticParser";
+#### Arithmetic Parser
 
-Expression : AdditiveExpression ;
+A simple arithmetic expression parser supporting `+`, `-`, `*`, `/`, parentheses, and integers.
 
-AdditiveExpression :
-    MultiplicativeExpression (("+" | "-") MultiplicativeExpression)* ;
-
-MultiplicativeExpression :
-    Primary (("*" | "/") Primary)* ;
-
-Primary :
-    <INTEGER>
-    | "(" Expression ")" ;
-
-TOKEN : <INTEGER : (["0"-"9"])+ > ;
-```
-
-**Generate and use:**
 ```bash
-# Generate the parser
-java -jar congocc.jar -lang rust Arithmetic.ccc
+# Run the existing tests (45 tests)
+cd examples/rust-test/arithmetic
+cargo test
 
-# Build it
-cd Arithmetic
-cargo build
-
-# Use in your application
+# Regenerate from the grammar (preserves hand-written parser.rs)
+java -jar congocc.jar -lang rust -d src SimpleArithmetic.ccc
+cargo test
 ```
 
-**Application code:**
+#### SQL Expression Parser
+
+A SQL filter expression parser supporting boolean operators (`AND`, `OR`, `NOT`), comparisons (`=`, `<>`, `<`, `>`, `<=`, `>=`), `LIKE`, `IN`, `BETWEEN`, `IS NULL`/`IS NOT NULL`, arithmetic, and literals.
+
+```bash
+# Run the existing tests (65 tests, including visitor tests)
+cd examples/rust-test/sqlexpr
+cargo test
+
+# Regenerate from the grammar (preserves hand-written parser.rs)
+java -jar congocc.jar -lang rust -d src SqlExpr.ccc
+cargo test
+```
+
+#### Regeneration Workflow
+
+Both examples have hand-written `parser.rs` files with full parsing logic. When you regenerate, the code generator **skips existing files** and only creates new ones. This means you can safely regenerate to pick up new template features (like `visitor.rs`) without losing your parser implementation:
+
+```
+Skipping: .../src/lib.rs (already exists)
+Skipping: .../src/arena.rs (already exists)
+Skipping: .../src/parser.rs (already exists)
+...
+Outputting: .../src/visitor.rs
+```
+
+To force a full regeneration (e.g. into a fresh directory), use a new output path:
+
+```bash
+java -jar congocc.jar -lang rust -d /tmp/fresh-output YourGrammar.ccc
+```
+
+### AST Visitor
+
+Generated parsers include a closure-based depth-first visitor via `Arena::visit()`:
+
 ```rust
-use arithmetic::{Parser, ParseError};
+use my_parser::*;
+use std::any::Any;
 
-fn main() -> Result<(), ParseError> {
-    let expressions = vec![
-        "1 + 2",
-        "3 * 4 + 5",
-        "(1 + 2) * 3",
-    ];
+let mut parser = Parser::new("your input".to_string())?;
+let root = parser.parse()?;
 
-    for expr in expressions {
-        println!("Parsing: {}", expr);
-        let mut parser = Parser::new(expr.to_string())?;
-        parser.parse()?;
-        println!("  ✓ Success");
-    }
-
-    Ok(())
-}
+// Count all nodes in the tree
+let mut count = 0;
+parser.arena().visit(root, &mut |_id, _node, _arena, depth, _opts| {
+    count += 1;
+    println!("Node at depth {}", depth);
+    VisitControl::Continue
+}, None);
 ```
+
+The closure receives `(NodeId, &AstNode, &Arena, depth, Option<&dyn Any>)` and returns a `VisitControl`:
+
+- **`Continue`** — visit children, then continue with siblings
+- **`SkipChildren`** — skip this node's children, continue with siblings
+- **`Stop`** — stop traversal entirely
+
+The optional `options` parameter passes caller-supplied context (as `&dyn Any`) through to every closure invocation.
 
 ### Rust-Specific Notes
 
@@ -291,4 +315,4 @@ fn main() -> Result<(), ParseError> {
 
 #### Acknowledgments
 
-Anthopic's Claude Sonnet 4.5 was used to generate most of the Rust code and documentation in this project.  See [docs/command_prompts.md](docs/command_prompts.md) for prompt history.
+Anthropic's Claude was used to generate most of the Rust code and documentation in this project. See [docs/command_prompts.md](docs/command_prompts.md) for prompt history.
