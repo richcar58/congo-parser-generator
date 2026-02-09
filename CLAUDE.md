@@ -71,7 +71,7 @@ java -jar congocc.jar -lang rust -d output/ grammar.ccc
 
 ### Key Package Structure
 
-**`org.congocc.core`** (12 files, ~3000 lines)
+**`org.congocc.core`**
 - Core data structures representing grammars, productions, and expansions
 - `Grammar.java` - Root of grammar data structure
 - `BNFProduction.java` - Grammar production rules
@@ -93,7 +93,7 @@ java -jar congocc.jar -lang rust -d output/ grammar.ccc
   - Java also has CodeInjector
   - Rust has RustTranslator (maps Java types to Rust, converts naming conventions)
 
-**`org.congocc.templates`** (~30+ classes)
+**`org.congocc.templates`**
 - Custom template engine (CTL - Congo Template Language)
 - Similar to FreeMarker but tailored for code generation
 - Templates in `src/templates/{java,python,csharp,rust}/*.ctl`
@@ -255,7 +255,6 @@ GitHub Actions workflow at `.github/workflows/core-tests.yml`:
   java -jar congocc.jar -lang rust -d examples/rust-test/sqlexpr/src examples/rust-test/sqlexpr/SqlExpr.ccc
   cd examples/rust-test/sqlexpr && cargo test
   ```
-- See `claude/claude-plan.md` for the original Rust implementation plan
 - See `.claude/Learnings.md` for lessons learned on arena allocation, parser integration, and template backporting
 
 ## Debugging Tips
