@@ -120,33 +120,6 @@ CongoCC uses 5 internal grammars (located in `src/grammars/`):
 
 These are rebuilt if modified via targets like `parser-gen`, `python-gen`, `csharp-gen`.
 
-## Grammar File Format
-
-Grammar files use `.ccc` extension with:
-
-- **BNF Productions**: Define parsing rules
-- **Lexical Specifications**: TOKEN/SKIP/UNPARSED definitions
-- **Preprocessor Directives**: `#if`, `#define`, etc.
-- **INCLUDE Directive**: Modular grammar composition
-- **Code Injection**: Inject methods into generated classes
-- **Assertions**: Grammar-level checks with ASSERT/ENSURE
-- **Contextual Predicates**: Context-sensitive parsing decisions
-
-### Built-in Grammar Includes
-
-CongoCC provides aliases for including standard grammars (see AppSettings.java:64-79):
-
-```
-JAVA, JAVA_LEXER, JAVA_IDENTIFIER_DEF
-PYTHON, PYTHON_LEXER, PYTHON_IDENTIFIER_DEF
-CSHARP, CSHARP_LEXER, CSHARP_IDENTIFIER_DEF
-JSON, JSONC
-LUA
-PREPROCESSOR
-```
-
-These map to `/include/{language}/*.ccc` files bundled in the jar.
-
 ## Examples Directory
 
 The `examples/` directory contains production-quality grammars:
@@ -191,7 +164,7 @@ cd examples/rust-test/sqlexpr && cargo test
 2. Edit templates in `src/templates/{java,python,csharp,rust}/*.ctl`
 3. Run `ant clean jar` to rebuild
 4. Test generated code with `ant test`
-5. For template changes affecting bootstrap: run `ant update-bootstrap` **twice** to ensure templates are fully updated
+5. **IMPORTANT**: For template changes affecting bootstrap, run `ant update-bootstrap` **twice**. The first run bundles old templates; the second run uses the jar with new templates to rebuild itself correctly
 
 ### Rust Code Generator Files
 
@@ -203,6 +176,7 @@ The Rust code generator consists of:
   - `tokens.rs` - Token type definitions
   - `lexer.rs` - Lexical analyzer
   - `parser.rs` - Recursive descent parser
+  - `visitor.rs` - Visitor pattern (closure walker + depth-first iterator)
   - `error.rs` - Error types with location tracking
   - `Cargo.toml` - Package manifest (Rust 2024 edition)
 - `src/templates/rust/tests/basic.rs.ctl` - Template for generating boilerplate integration tests
@@ -224,21 +198,6 @@ Features often span multiple layers:
 - **Single parser test**: `cd examples/<name> && ant test` or `ant test-all`
 - **Manual testing**: Generate parser with `java -jar congocc.jar` and test output
 
-## Advanced Features
-
-CongoCC includes several unique features:
-
-- **Contextual Predicates**: Context-sensitive parsing decisions based on parse tree state
-- **Context-sensitive Tokenization**: Tokens activated/deactivated based on parsing context
-- **Up-to-here Syntax**: Clean syntax for certain parsing patterns
-- **Full Unicode Support**: 32-bit Unicode standard
-- **Code Injection**: Inject custom code into generated parser/lexer/token classes
-- **Fault-tolerant Parsing**: Experimental error recovery (unpolished but usable)
-- **Tree Building**: Automatic AST construction with JTB-style node generation
-- **Token Chaining**: Token inheritance hierarchies
-
-See README.md links for detailed documentation on these features.
-
 ## CI/CD
 
 GitHub Actions workflow at `.github/workflows/core-tests.yml`:
@@ -249,6 +208,8 @@ GitHub Actions workflow at `.github/workflows/core-tests.yml`:
 ## Rust Development Notes
 
 - Rust code generation is newer than Java/Python/C#; no Ant targets exist for Rust yet
+- **Skip-existing behavior**: `FilesGenerator.java` skips generating Rust files that already exist on disk. This protects hand-crafted code in examples but means regeneration only produces files that are missing. Delete a file first if you want it regenerated.
+- Rust examples (`arithmetic/`, `sqlexpr/`) have **hand-written** source files — the templates only generate TODO stubs for `parser.rs`
 - After modifying Rust templates, regenerate and test manually:
   ```bash
   ant clean jar
