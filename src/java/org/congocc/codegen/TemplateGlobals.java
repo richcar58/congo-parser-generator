@@ -7,6 +7,7 @@ import java.util.function.Function;
 
 import org.congocc.app.*;
 import org.congocc.core.*;
+import org.congocc.codegen.rust.RustProductionInfo;
 import org.congocc.parser.Node;
 import static org.congocc.parser.Node.CodeLang.*;
 import org.congocc.parser.tree.*;
@@ -451,6 +452,11 @@ public class TemplateGlobals {
             processImports(imports, result);
         }
         return result.toString();
+    }
+
+    // Used in Rust templates for pattern-based code generation
+    public RustProductionInfo analyzeRustProduction(BNFProduction production) {
+        return RustProductionInfo.analyze(production);
     }
 
     public List<String> getSortedNodeClassNames() {

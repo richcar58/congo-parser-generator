@@ -72,17 +72,30 @@ The fourth parameter is the **depth** of the node in the AST.  The root node has
 
 The fifth optional parameter, **options**, is a reference to a dynamic type of the caller's choosing.  By supplying a reference, a closure can share state between its different invocations as well as with the calling code.
 
-### Fix Bug After Visitor Implementation
+### Fix Parser Implementation
 
-I try to regenerate the examples/rust-test/arithmetic parser with the visitor implementation doing the following:
+#### Problem Background 
+
+There seems to have been a serious regression during some previous Claude session.  The generated parsers in examples/rust-test/arithmetic and examples/rust-test/sqlexpr do not fully implement their parser.rs methods when the parsers are regenerated.  Instead of actually generating code, the parse methods return the unit type and indicate with a TODO comment that the implementation needs to be completed.  Running "cargo test" causes integration_test.rs to fail in both examples. 
+
+In the *Generated Files* section of README.md, a note indicates that parser.rs requires handwritten code in order to complete the parser.  This is not true.  The current example parser.rs files are complete and their code was Claude generated.
+
+Another inaccuracy in README.md is in the *Optional Serde Support* section.  The Cargo.toml format shown is not valid, which may be involved in the parser.rs implementation problem.  The following format is the standard way of specifying serde dependancy:
+
+    serde = { version = "1.0", features = ["derive"] }
+    serde_json = "1.0"
+
+#### Fixing the Problem
+
+There should never be a case where the parser requires handwritten code to be complete.  Here is how the example arithmetic parser is regenerated:
 
     cd examples/rust-test/arithmetic
-    java -jar /home/rich/git/congo-rust/congocc.jar -lang rust SimpleArithmetic.ccc
+    java -jar /home/rich/git/congo-rust/congocc.jar -d src -lang rust SimpleArithmetic.ccc
 
-Methods in the newly generated parser.rs file now have now lost their content.  Instead of actually generating code, the methods have a TODO and return the unit type.  Running "cargo test" causes integration_test.rs to fail. 
+The example sqlexpr parser is regenerated in a similar way. 
 
-The previous working version of the arithmetic example code can be found in the github repository at https://github.com/richcar58/congo-parser-generator.git, so adding the visitor implementation may have caused a regression.
+The github repository at https://github.com/richcar58/congo-parser-generator.git contains the previously committed versions of the parser-generator.  Maybe the regression can be identified by looking at past commits.
 
-Another interesting point is that examples/rust-test/sqlexpr has the visitor pattern implemented.  Its parser.rs methods are implemented and its integration_test.rs test still works.
+The goal is to develop a plan for correctly generating and regenerating complete parsers all the time.  The generated parser.rs content should be the same as the current content.  Regeneration should output the same code and that code should pass all integration tests as they are currently written.  Append all learnings to .claude/Learnings.md.
 
-So the question can the example parsers be generated with the visitor pattern without invalidating the parser's implementation?
+

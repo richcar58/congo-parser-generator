@@ -52,8 +52,17 @@ pub use lexer::Lexer;
 pub use parser::Parser;
 pub use visitor::VisitControl;
 
-// Re-export AST node types
+// Re-export AST node types and operator enums
 [#list grammar.parserProductions as production]
 pub use arena::${production.name?cap_first}Node;
+[/#list]
+[#list grammar.parserProductions as production]
+[#var info = globals::analyzeRustProduction(production)]
+[#if info.pattern == "infix" && info.hasOperatorEnum]
+pub use arena::${info.operatorEnumName};
+[/#if]
+[#if info.pattern == "optional_suffix" && info.hasSuffixEnum]
+pub use arena::${info.suffixEnumName};
+[/#if]
 [/#list]
 [/#if]

@@ -68,7 +68,22 @@ impl Arena {
     fn is_passthrough(&self, node_id: NodeId) -> bool {
         match self.get_node(node_id) {
 [#list grammar.parserProductions as production]
+[#var info = globals::analyzeRustProduction(production)]
+[#if info.pattern == "root"]
+            AstNode::${production.name?cap_first}(n) => n.children.len() == 1,
+[#elseif info.pattern == "infix"]
             AstNode::${production.name?cap_first}(n) => n.children.len() == 1 && n.operators.is_empty(),
+[#elseif info.pattern == "separator"]
+            AstNode::${production.name?cap_first}(n) => n.children.len() == 1,
+[#elseif info.pattern == "prefix"]
+            AstNode::${production.name?cap_first}(n) => n.children.len() == 1 && !n.${info.boolFieldName},
+[#elseif info.pattern == "optional_suffix" && info.hasSuffixEnum]
+            AstNode::${production.name?cap_first}(n) => n.children.len() == 1 && n.comparison_op.is_none(),
+[#elseif info.pattern == "choice"]
+            AstNode::${production.name?cap_first}(_) => false,
+[#else]
+            AstNode::${production.name?cap_first}(n) => n.children.len() == 1,
+[/#if]
 [/#list]
         }
     }
@@ -94,27 +109,77 @@ impl Arena {
         let indent_str = "  ".repeat(indent);
         match self.get_node(node_id) {
 [#list grammar.parserProductions as production]
+[#var info = globals::analyzeRustProduction(production)]
             AstNode::${production.name?cap_first}(node) => {
+[#if info.pattern == "infix"]
+                if !node.operators.is_empty() {
+                    let ops: Vec<&str> = node.operators.iter()
+                        .map(|op| match op {
+[#list info.operatorVariants as v]
+                            ${info.operatorEnumName}::${v.variantName} => "${v.display}",
+[/#list]
+                        })
+                        .collect();
+                    result.push_str(&format!("{}${production.name?cap_first} [{}]\n", indent_str, ops.join(", ")));
+                } else {
+                    result.push_str(&format!("{}${production.name?cap_first}\n", indent_str));
+                }
+                for child in &node.children {
+                    self.pretty_print_impl(*child, indent + 1, result);
+                }
+[#elseif info.pattern == "separator"]
+                if node.children.len() > 1 {
+                    result.push_str(&format!("{}${production.name?cap_first} [${info.separatorTokenName} x{}]\n", indent_str, node.children.len() - 1));
+                } else {
+                    result.push_str(&format!("{}${production.name?cap_first}\n", indent_str));
+                }
+                for child in &node.children {
+                    self.pretty_print_impl(*child, indent + 1, result);
+                }
+[#elseif info.pattern == "prefix"]
+                if node.${info.boolFieldName} {
+                    result.push_str(&format!("{}${production.name?cap_first} [${info.prefixTokenName}]\n", indent_str));
+                } else {
+                    result.push_str(&format!("{}${production.name?cap_first}\n", indent_str));
+                }
+                for child in &node.children {
+                    self.pretty_print_impl(*child, indent + 1, result);
+                }
+[#elseif info.pattern == "optional_suffix" && info.hasSuffixEnum]
+                if let Some(op) = &node.comparison_op {
+                    let op_str = match op {
+[#list info.suffixVariants as v]
+                        ${info.suffixEnumName}::${v.variantName} => "${v.display}",
+[/#list]
+                    };
+                    result.push_str(&format!("{}${production.name?cap_first} [{}]\n", indent_str, op_str));
+                } else {
+                    result.push_str(&format!("{}${production.name?cap_first}\n", indent_str));
+                }
+                for child in &node.children {
+                    self.pretty_print_impl(*child, indent + 1, result);
+                }
+[#elseif info.pattern == "choice"]
                 if node.children.is_empty() {
-                    // Leaf node - show the token value
-                    let value = &self.get_token(node.begin_token).image;
-                    result.push_str(&format!("{}${production.name?cap_first}(\"{}\")\n", indent_str, value));
-                } else if node.operators.is_empty() {
-                    // Internal node without operators
+                    let token = self.get_token(node.begin_token);
+                    result.push_str(&format!("{}${production.name?cap_first}(\"{}\")\n", indent_str, token.image));
+                } else {
                     result.push_str(&format!("{}${production.name?cap_first}\n", indent_str));
                     for child in &node.children {
                         self.pretty_print_impl(*child, indent + 1, result);
                     }
+                }
+[#else]
+                if node.children.is_empty() {
+                    let value = &self.get_token(node.begin_token).image;
+                    result.push_str(&format!("{}${production.name?cap_first}(\"{}\")\n", indent_str, value));
                 } else {
-                    // Internal node with operators
-                    let ops: Vec<&str> = node.operators.iter()
-                        .map(|tid| self.get_token(*tid).image.as_str())
-                        .collect();
-                    result.push_str(&format!("{}${production.name?cap_first} [{}]\n", indent_str, ops.join(", ")));
+                    result.push_str(&format!("{}${production.name?cap_first}\n", indent_str));
                     for child in &node.children {
                         self.pretty_print_impl(*child, indent + 1, result);
                     }
                 }
+[/#if]
             }
 [/#list]
         }
@@ -138,8 +203,35 @@ pub enum AstNode {
 [/#list]
 }
 
+[#-- Generate operator enums for infix patterns --]
+[#list grammar.parserProductions as production]
+[#var info = globals::analyzeRustProduction(production)]
+[#if info.pattern == "infix" && info.hasOperatorEnum]
+/// Operator for ${production.name}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ${info.operatorEnumName} {
+[#list info.operatorVariants as v]
+    /// ${v.display}
+    ${v.variantName},
+[/#list]
+}
+
+[/#if]
+[#if info.pattern == "optional_suffix" && info.hasSuffixEnum]
+/// Comparison operation type for ${production.name}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ${info.suffixEnumName} {
+[#list info.suffixVariants as v]
+    /// ${v.display}
+    ${v.variantName},
+[/#list]
+}
+
+[/#if]
+[/#list]
 [#-- Generate struct for each production --]
 [#list grammar.parserProductions as production]
+[#var info = globals::analyzeRustProduction(production)]
 /// AST node for ${production.name} production
 #[derive(Debug, Clone)]
 pub struct ${production.name?cap_first}Node {
@@ -147,8 +239,18 @@ pub struct ${production.name?cap_first}Node {
     pub parent: Option<NodeId>,
     /// Child nodes
     pub children: Vec<NodeId>,
-    /// Operator tokens between children: operators[i] is between children[i] and children[i+1]
-    pub operators: Vec<TokenId>,
+[#if info.pattern == "infix" && info.hasOperatorEnum]
+    /// Operators between children: operators[i] is between children[i] and children[i+1]
+    pub operators: Vec<${info.operatorEnumName}>,
+[/#if]
+[#if info.pattern == "prefix" && info.hasBoolField]
+    /// Whether the ${info.prefixTokenName} operator was present
+    pub ${info.boolFieldName}: bool,
+[/#if]
+[#if info.pattern == "optional_suffix" && info.hasSuffixEnum]
+    /// The comparison operator used, if any
+    pub comparison_op: Option<${info.suffixEnumName}>,
+[/#if]
     /// First token of this node
     pub begin_token: TokenId,
     /// Last token of this node
@@ -161,36 +263,51 @@ impl ${production.name?cap_first}Node {
         ${production.name?cap_first}Node {
             parent: None,
             children: Vec::new(),
+[#if info.pattern == "infix" && info.hasOperatorEnum]
             operators: Vec::new(),
+[/#if]
+[#if info.pattern == "prefix" && info.hasBoolField]
+            ${info.boolFieldName}: false,
+[/#if]
+[#if info.pattern == "optional_suffix" && info.hasSuffixEnum]
+            comparison_op: None,
+[/#if]
             begin_token,
             end_token,
         }
     }
 
+[#if info.pattern == "infix" && info.hasOperatorEnum]
     /// Get the left operand (first child)
-    pub fn left<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
-        self.children.first().map(|id| arena.get_node(*id))
+    pub fn left<'a>(&self, arena: &'a Arena) -> &'a AstNode {
+        arena.get_node(self.children[0])
     }
 
-    /// Get the right operand (second child, for binary expressions)
+    /// Get the right operand (second child for binary case)
     pub fn right<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
         self.children.get(1).map(|id| arena.get_node(*id))
     }
 
-    /// Get the first operator token (for binary expressions)
-    pub fn first_op(&self) -> Option<TokenId> {
-        self.operators.first().copied()
-    }
-
-    /// Get operator token at index (between children[i] and children[i+1])
-    pub fn op(&self, index: usize) -> Option<TokenId> {
+    /// Get operator at index (between children[i] and children[i+1])
+    pub fn op(&self, index: usize) -> Option<${info.operatorEnumName}> {
         self.operators.get(index).copied()
     }
 
-    /// Get the token image of this node's first token (useful for leaf nodes)
+    /// Get first operator (for binary expressions)
+    pub fn first_op(&self) -> Option<${info.operatorEnumName}> {
+        self.operators.first().copied()
+    }
+
+    /// Iterator over (operator, operand) pairs after the first operand
+    pub fn op_operand_pairs(&self) -> impl Iterator<Item = (${info.operatorEnumName}, NodeId)> + '_ {
+        self.operators.iter().copied().zip(self.children.iter().skip(1).copied())
+    }
+[#elseif info.pattern == "choice"]
+    /// Get the token image (the actual value as string)
     pub fn value<'a>(&self, arena: &'a Arena) -> &'a str {
         &arena.get_token(self.begin_token).image
     }
+[/#if]
 }
 
 [/#list]

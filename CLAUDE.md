@@ -170,17 +170,17 @@ cd examples/rust-test/sqlexpr && cargo test
 
 The Rust code generator consists of:
 - `src/java/org/congocc/codegen/rust/RustTranslator.java` - Type/naming conversions
+- `src/java/org/congocc/codegen/rust/RustProductionInfo.java` - Pattern analysis for grammar productions (detects ROOT, INFIX, SEPARATOR, PREFIX, CHOICE, OPTIONAL_SUFFIX patterns and generates typed enum metadata)
 - `src/templates/rust/*.ctl` - Template files generating:
-  - `lib.rs` - Module root with public API
-  - `arena.rs` - Arena allocator for AST nodes (type-safe NodeId/TokenId)
+  - `lib.rs` - Module root with public API and re-exports of typed operator enums
+  - `arena.rs` - Arena allocator with typed operator enums, pattern-specific node fields, and pretty-print
   - `tokens.rs` - Token type definitions
-  - `lexer.rs` - Lexical analyzer
-  - `parser.rs` - Recursive descent parser
+  - `lexer.rs` - Lexical analyzer (basic; skip-existing for hand-written lexers)
+  - `parser.rs` - Complete recursive descent parser with pattern-based code generation
   - `visitor.rs` - Visitor pattern (closure walker + depth-first iterator)
   - `error.rs` - Error types with location tracking
-  - `Cargo.toml` - Package manifest (Rust 2024 edition)
+  - `Cargo.toml` - Package manifest (Rust 2021 edition)
 - `src/templates/rust/tests/basic.rs.ctl` - Template for generating boilerplate integration tests
-- Generated Rust parsers include `serde` and `serde_json` as dependencies
 
 ### Adding New Features
 
@@ -208,15 +208,17 @@ GitHub Actions workflow at `.github/workflows/core-tests.yml`:
 ## Rust Development Notes
 
 - Rust code generation is newer than Java/Python/C#; no Ant targets exist for Rust yet
-- **Skip-existing behavior**: `FilesGenerator.java` skips generating Rust files that already exist on disk. This protects hand-crafted code in examples but means regeneration only produces files that are missing. Delete a file first if you want it regenerated.
-- Rust examples (`arithmetic/`, `sqlexpr/`) have **hand-written** source files — the templates only generate TODO stubs for `parser.rs`
+- **Parser/arena are fully generated**: Templates produce complete, working parsers with typed operator enums. Regeneration always overwrites `parser.rs`, `arena.rs`, `visitor.rs`, `lib.rs`, `error.rs`, and `Cargo.toml`
+- **Lexer/tokens skip-existing**: `lexer.rs` and `tokens.rs` are skipped if they already exist, because the lexer template doesn't handle regex-based tokens (identifiers, string literals). Complex grammars like `sqlexpr` need hand-written lexers
+- **Pattern-based generation**: `RustProductionInfo.java` analyzes each grammar production's expansion tree and classifies it as ROOT, INFIX, SEPARATOR, PREFIX, CHOICE, or OPTIONAL_SUFFIX. Templates use this metadata to generate typed operator enums (e.g., `AdditiveOp`, `ComparisonOp`) and pattern-specific parsing code
 - After modifying Rust templates, regenerate and test manually:
   ```bash
   ant clean jar
+  java -jar congocc.jar -lang rust -d examples/rust-test/arithmetic/src examples/rust-test/arithmetic/SimpleArithmetic.ccc
+  cd examples/rust-test/arithmetic && cargo test
   java -jar congocc.jar -lang rust -d examples/rust-test/sqlexpr/src examples/rust-test/sqlexpr/SqlExpr.ccc
   cd examples/rust-test/sqlexpr && cargo test
   ```
-- See `.claude/Learnings.md` for lessons learned on arena allocation, parser integration, and template backporting
 
 ## Debugging Tips
 

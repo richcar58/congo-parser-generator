@@ -3,7 +3,24 @@
 use crate::error::{ParseError, ParseResult};
 use crate::tokens::{Token, TokenType};
 use crate::lexer::Lexer;
-use crate::arena::{Arena, NodeId, TokenId};
+use crate::arena::{Arena, AstNode, NodeId, TokenId};
+[#-- Import operator enums and node types --]
+[#if grammar.productionTable?size > 0]
+[#list grammar.parserProductions as production]
+[#var info = globals::analyzeRustProduction(production)]
+[#if info.pattern == "infix" && info.hasOperatorEnum]
+use crate::arena::${info.operatorEnumName};
+[/#if]
+[#if info.pattern == "optional_suffix" && info.hasSuffixEnum]
+use crate::arena::${info.suffixEnumName};
+[/#if]
+[/#list]
+use crate::arena::{
+[#list grammar.parserProductions as production]
+    ${production.name?cap_first}Node[#if production_has_next],[/#if]
+[/#list]
+};
+[/#if]
 
 /// The parser for ${settings.parserClassName}
 pub struct Parser {
@@ -42,31 +59,70 @@ impl Parser {
         &self.arena
     }
 
+    /// Get a mutable reference to the arena
+    pub fn arena_mut(&mut self) -> &mut Arena {
+        &mut self.arena
+    }
+
     /// Get the original input string
     pub fn input(&self) -> &str {
         &self.input
     }
 
 [#if grammar.productionTable?size > 0]
-    /// Parse the input according to the grammar
-    pub fn parse(&mut self) -> ParseResult<()> {
-        // TODO: Call the start production
-        // This would be generated based on the grammar's productions
-        Ok(())
+    /// Parse the input and return the root node ID
+    pub fn parse(&mut self) -> ParseResult<NodeId> {
+[#list grammar.parserProductions as production]
+[#if production_index == 0]
+        self.parse_${globals::translateIdentifier(production.name)}()
+[/#if]
+[/#list]
     }
 
 [#-- Generate parsing methods for each production --]
 [#list grammar.parserProductions as production]
-    /// Parse: ${production.leadingComments!}
-    fn parse_${globals::translateIdentifier(production.name)}(&mut self) -> ParseResult<()> {
-        // TODO: Generate production parsing logic
-        // This would translate the BNF expansion into Rust code
-        Ok(())
+[#var info = globals::analyzeRustProduction(production)]
+[#var snakeName = globals::translateIdentifier(production.name)]
+[#if info.pattern == "root"]
+[@GenerateRootMethod production, info, snakeName /]
+[#elseif info.pattern == "infix"]
+[@GenerateInfixMethod production, info, snakeName /]
+[#elseif info.pattern == "separator"]
+[@GenerateSeparatorMethod production, info, snakeName /]
+[#elseif info.pattern == "prefix"]
+[@GeneratePrefixMethod production, info, snakeName /]
+[#elseif info.pattern == "choice"]
+[@GenerateChoiceMethod production, info, snakeName /]
+[#elseif info.pattern == "optional_suffix"]
+[@GenerateOptionalSuffixMethod production, info, snakeName /]
+[#else]
+    /// Parse: ${production.name}
+    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
+        let begin_token = self.alloc_current_token();
+        let children: Vec<NodeId> = Vec::new();
+        let end_token = self.current_token_id.unwrap_or(begin_token);
+        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+        node.children = children;
+        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+        Ok(node_id)
     }
 
+[/#if]
 [/#list]
+    // ========== Helper Methods ==========
+
+    /// Set the parent of a node
+    fn set_parent(&mut self, child_id: NodeId, parent_id: NodeId) {
+        match self.arena.get_node_mut(child_id) {
+[#list grammar.parserProductions as production]
+            AstNode::${production.name?cap_first}(node) => node.parent = Some(parent_id),
+[/#list]
+        }
+    }
+
 [/#if]
     /// Check if the current token matches any of the given types
+    #[allow(dead_code)]
     fn current_token_matches(&self, types: &[TokenType]) -> bool {
         types.contains(&self.current_token.token_type)
     }
@@ -74,7 +130,12 @@ impl Parser {
     /// Consume the current token and advance to the next one
     fn consume_token(&mut self) -> ParseResult<Token> {
         let old_token = self.current_token.clone();
-        self.current_token = self.lexer.next_token()?;
+        self.current_token = if !self.lookahead.is_empty() {
+            self.lookahead.remove(0)
+        } else {
+            self.lexer.next_token()?
+        };
+        self.current_token_id = Some(self.arena.alloc_token(self.current_token.clone()));
         Ok(old_token)
     }
 
@@ -93,7 +154,15 @@ impl Parser {
         }
     }
 
+    /// Allocate the current token to the arena and track its ID
+    fn alloc_current_token(&mut self) -> TokenId {
+        let token_id = self.arena.alloc_token(self.current_token.clone());
+        self.current_token_id = Some(token_id);
+        token_id
+    }
+
     /// Get lookahead token at position n (0 = current token)
+    #[allow(dead_code)]
     fn lookahead(&mut self, n: usize) -> ParseResult<&Token> {
         if n == 0 {
             return Ok(&self.current_token);
@@ -107,11 +176,271 @@ impl Parser {
 
         Ok(&self.lookahead[n - 1])
     }
-
-    /// Allocate the current token to the arena and track its ID
-    fn alloc_current_token(&mut self) -> TokenId {
-        let token_id = self.arena.alloc_token(self.current_token.clone());
-        self.current_token_id = Some(token_id);
-        token_id
-    }
 }
+[#-- ====================================================================== --]
+[#-- MACRO: Root pattern - X : Y <EOF>                                      --]
+[#-- ====================================================================== --]
+[#macro GenerateRootMethod production info snakeName]
+    /// Parse: ${production.name} -> ${info.rootChildName} <EOF>
+    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
+        let begin_token = self.alloc_current_token();
+
+        let child = self.parse_${globals::translateIdentifier(info.rootChildName)}()?;
+
+        self.expect_token(TokenType::EOF)?;
+        let end_token = self.current_token_id.unwrap_or(begin_token);
+
+        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+        node.children.push(child);
+
+        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+        self.set_parent(child, node_id);
+        Ok(node_id)
+    }
+
+[/#macro]
+[#-- ====================================================================== --]
+[#-- MACRO: Infix pattern - X : Y ((op1 | op2) Y)*                         --]
+[#-- ====================================================================== --]
+[#macro GenerateInfixMethod production info snakeName]
+    /// Parse: ${production.name} -> ${info.infixChildName} ((ops) ${info.infixChildName})*
+    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
+        let begin_token = self.alloc_current_token();
+        let mut children = Vec::new();
+        let mut operators = Vec::new();
+
+        let first = self.parse_${globals::translateIdentifier(info.infixChildName)}()?;
+        children.push(first);
+
+        while [#list info.operatorVariants as v]self.current_token.token_type == TokenType::${v.tokenName}[#if v_has_next]
+            || [/#if][/#list]
+        {
+            let op = match self.current_token.token_type {
+[#list info.operatorVariants as v]
+                TokenType::${v.tokenName} => ${info.operatorEnumName}::${v.variantName},
+[/#list]
+                _ => unreachable!(),
+            };
+            operators.push(op);
+
+            self.consume_token()?;
+            let child = self.parse_${globals::translateIdentifier(info.infixChildName)}()?;
+            children.push(child);
+        }
+
+        let end_token = self.current_token_id.unwrap_or(begin_token);
+        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+        node.children = children.clone();
+        node.operators = operators;
+
+        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
+        Ok(node_id)
+    }
+
+[/#macro]
+[#-- ====================================================================== --]
+[#-- MACRO: Separator pattern - X : Y (sep Y)*                             --]
+[#-- ====================================================================== --]
+[#macro GenerateSeparatorMethod production info snakeName]
+    /// Parse: ${production.name} -> ${info.separatorChildName} (${info.separatorTokenName} ${info.separatorChildName})*
+    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
+        let begin_token = self.alloc_current_token();
+        let mut children = Vec::new();
+
+        let first = self.parse_${globals::translateIdentifier(info.separatorChildName)}()?;
+        children.push(first);
+
+        while self.current_token.token_type == TokenType::${info.separatorTokenName} {
+            self.consume_token()?;
+            let child = self.parse_${globals::translateIdentifier(info.separatorChildName)}()?;
+            children.push(child);
+        }
+
+        let end_token = self.current_token_id.unwrap_or(begin_token);
+        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+        node.children = children.clone();
+
+        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
+        Ok(node_id)
+    }
+
+[/#macro]
+[#-- ====================================================================== --]
+[#-- MACRO: Prefix pattern - X : <TOKEN> X | Y                             --]
+[#-- ====================================================================== --]
+[#macro GeneratePrefixMethod production info snakeName]
+    /// Parse: ${production.name} -> ${info.prefixTokenName} ${production.name} | ${info.prefixAltChildName!}
+    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
+        let begin_token = self.alloc_current_token();
+
+        if self.current_token.token_type == TokenType::${info.prefixTokenName} {
+            self.consume_token()?;
+            let child = self.parse_${snakeName}()?;
+            let end_token = self.current_token_id.unwrap_or(begin_token);
+
+            let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+            node.${info.boolFieldName} = true;
+            node.children.push(child);
+
+            let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+            self.set_parent(child, node_id);
+            return Ok(node_id);
+        }
+
+[#if info.prefixAltChildName??]
+        let child = self.parse_${globals::translateIdentifier(info.prefixAltChildName)}()?;
+[#else]
+        let child = self.parse_${snakeName}()?;
+[/#if]
+        let end_token = self.current_token_id.unwrap_or(begin_token);
+
+        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+        node.children.push(child);
+
+        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+        self.set_parent(child, node_id);
+        Ok(node_id)
+    }
+
+[/#macro]
+[#-- ====================================================================== --]
+[#-- MACRO: Choice pattern - X : <A> | <B> | ... | "(" Y ")"               --]
+[#-- ====================================================================== --]
+[#macro GenerateChoiceMethod production info snakeName]
+    /// Parse: ${production.name}
+    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
+        let begin_token = self.alloc_current_token();
+        let mut children = Vec::new();
+
+[#list info.choiceAlternatives as alt]
+[#if alt.type == "terminal"]
+        ${(alt_index == 0)?string("if", "else if")} self.current_token.token_type == TokenType::${alt.tokenName} {
+            self.consume_token()?;
+        }
+[#elseif alt.type == "parenthesized"]
+        ${(alt_index == 0)?string("if", "else if")} self.current_token.token_type == TokenType::LPAREN {
+            self.consume_token()?;
+            let inner = self.parse_${globals::translateIdentifier(alt.innerProdName)}()?;
+            children.push(inner);
+            self.expect_token(TokenType::RPAREN)?;
+        }
+[#else]
+        ${(alt_index == 0)?string("if", "else if")} false {
+            // Unrecognized alternative
+        }
+[/#if]
+[/#list]
+        else {
+            return Err(ParseError::at_position(
+                format!(
+                    "Expected expression, found {:?} '{}'",
+                    self.current_token.token_type, self.current_token.image
+                ),
+                self.current_token.begin_offset,
+            ));
+        }
+
+        let end_token = self.current_token_id.unwrap_or(begin_token);
+        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+        node.children = children.clone();
+
+        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
+        Ok(node_id)
+    }
+
+[/#macro]
+[#-- ====================================================================== --]
+[#-- MACRO: Optional suffix pattern - X : Y (suffix)?                       --]
+[#-- ====================================================================== --]
+[#macro GenerateOptionalSuffixMethod production info snakeName]
+    /// Parse: ${production.name} -> ${info.suffixChildName} (suffix)?
+    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
+        let begin_token = self.alloc_current_token();
+        let mut children = Vec::new();
+[#if info.hasSuffixEnum]
+        let mut comparison_op = None;
+[/#if]
+
+        let left = self.parse_${globals::translateIdentifier(info.suffixChildName)}()?;
+        children.push(left);
+
+        // Check for optional suffix
+        match self.current_token.token_type {
+[#list info.suffixAlternatives as alt]
+[#if alt.type == "comparison_group"]
+[#-- Standard comparison operators: (<EQ> | <NE> | ...) NonTerminal --]
+[#list alt.tokenNames as tokenName]
+            TokenType::${tokenName} => {
+[#-- Find the variant name for this token --]
+[#list info.suffixVariants as v]
+[#if v.tokenName == tokenName]
+                comparison_op = Some(${info.suffixEnumName}::${v.variantName});
+[/#if]
+[/#list]
+                self.consume_token()?;
+[#if alt.rightChildName??]
+                let right = self.parse_${globals::translateIdentifier(alt.rightChildName)}()?;
+                children.push(right);
+[/#if]
+            }
+[/#list]
+[#elseif alt.type == "is_null"]
+[#-- IS [NOT] NULL pattern --]
+            TokenType::IS => {
+                self.consume_token()?;
+                if self.current_token.token_type == TokenType::NOT {
+                    self.consume_token()?;
+                    self.expect_token(TokenType::NULL)?;
+                    comparison_op = Some(${info.suffixEnumName}::IsNotNull);
+                } else {
+                    self.expect_token(TokenType::NULL)?;
+                    comparison_op = Some(${info.suffixEnumName}::IsNull);
+                }
+            }
+[#elseif alt.type == "keyword" && alt.rest??]
+[#-- Keyword-prefixed alternatives: LIKE, IN, BETWEEN, etc. --]
+            TokenType::${alt.leadingToken} => {
+[#list info.suffixVariants as v]
+[#if v.tokenName == alt.leadingToken]
+                comparison_op = Some(${info.suffixEnumName}::${v.variantName});
+[/#if]
+[/#list]
+                self.consume_token()?;
+[#list alt.rest as unit]
+[#if unit.type == "terminal"]
+                self.expect_token(TokenType::${unit.tokenName})?;
+[#elseif unit.type == "nonterminal"]
+                let child = self.parse_${globals::translateIdentifier(unit.name)}()?;
+                children.push(child);
+[/#if]
+[/#list]
+            }
+[/#if]
+[/#list]
+            _ => {}
+        }
+
+        let end_token = self.current_token_id.unwrap_or(begin_token);
+        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+[#if info.hasSuffixEnum]
+        node.comparison_op = comparison_op;
+[/#if]
+        node.children = children.clone();
+
+        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
+        Ok(node_id)
+    }
+
+[/#macro]
