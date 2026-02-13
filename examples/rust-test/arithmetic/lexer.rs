@@ -76,174 +76,96 @@ impl Lexer {
 
     /// Try to match a token at the current position
     fn try_match_token(&mut self, start_pos: usize) -> ParseResult<Option<Token>> {
-        // Match literal
-        if self.matches_string("+") {
-            let image = "+".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
+        let ch = self.current_char();
+
+        match ch {
+            '+' => {
                 self.advance();
+                return Ok(Some(Token::new(
+                    TokenType::PLUS,
+                    "+".to_string(),
+                    start_pos,
+                    self.position,
+                )));
             }
-            return Ok(Some(Token::new(
-                TokenType::PLUS,
-                image,
-                start_pos,
-                end_pos,
-            )));
+            '-' => {
+                self.advance();
+                return Ok(Some(Token::new(
+                    TokenType::MINUS,
+                    "-".to_string(),
+                    start_pos,
+                    self.position,
+                )));
+            }
+            '*' => {
+                self.advance();
+                return Ok(Some(Token::new(
+                    TokenType::STAR,
+                    "*".to_string(),
+                    start_pos,
+                    self.position,
+                )));
+            }
+            '/' => {
+                self.advance();
+                return Ok(Some(Token::new(
+                    TokenType::SLASH,
+                    "/".to_string(),
+                    start_pos,
+                    self.position,
+                )));
+            }
+            '(' => {
+                self.advance();
+                return Ok(Some(Token::new(
+                    TokenType::LPAREN,
+                    "(".to_string(),
+                    start_pos,
+                    self.position,
+                )));
+            }
+            ')' => {
+                self.advance();
+                return Ok(Some(Token::new(
+                    TokenType::RPAREN,
+                    ")".to_string(),
+                    start_pos,
+                    self.position,
+                )));
+            }
+            _ => {}
         }
 
-        // Match literal
-        if self.matches_string("-") {
-            let image = "-".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::MINUS,
-                image,
-                start_pos,
-                end_pos,
-            )));
+        // Numeric literals
+        if ch.is_ascii_digit() {
+            return self.match_number(start_pos);
         }
-
-        // Match literal
-        if self.matches_string("*") {
-            let image = "*".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::STAR,
-                image,
-                start_pos,
-                end_pos,
-            )));
-        }
-
-        // Match literal
-        if self.matches_string("/") {
-            let image = "/".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::SLASH,
-                image,
-                start_pos,
-                end_pos,
-            )));
-        }
-
-        // Match literal
-        if self.matches_string("(") {
-            let image = "(".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::LPAREN,
-                image,
-                start_pos,
-                end_pos,
-            )));
-        }
-
-        // Match literal
-        if self.matches_string(")") {
-            let image = ")".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::RPAREN,
-                image,
-                start_pos,
-                end_pos,
-            )));
-        }
-
-        // Match literal
-        if self.matches_string(" ") {
-            let image = " ".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::Token7,
-                image,
-                start_pos,
-                end_pos,
-            )));
-        }
-
-        // Match literal
-        if self.matches_string("\t") {
-            let image = "\t".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::Token8,
-                image,
-                start_pos,
-                end_pos,
-            )));
-        }
-
-        // Match literal
-        if self.matches_string("\n") {
-            let image = "\n".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::Token9,
-                image,
-                start_pos,
-                end_pos,
-            )));
-        }
-
-        // Match literal
-        if self.matches_string("\r") {
-            let image = "\r".to_string();
-            let end_pos = self.position + image.len();
-            for _ in 0..image.len() {
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::Token10,
-                image,
-                start_pos,
-                end_pos,
-            )));
-        }
-
-        // Match INTEGER token (digits)
-        if self.current_char().is_ascii_digit() {
-            let mut image = String::new();
-            while self.position < self.input.len() && self.current_char().is_ascii_digit() {
-                image.push(self.current_char());
-                self.advance();
-            }
-            return Ok(Some(Token::new(
-                TokenType::INTEGER,
-                image,
-                start_pos,
-                self.position,
-            )));
-        }
-
 
         // No token matched
         Ok(None)
+    }
+
+    /// Consume a literal string token
+    fn consume_literal(&mut self, token_type: TokenType, literal: &str, start_pos: usize) -> Token {
+        for _ in 0..literal.len() {
+            self.advance();
+        }
+        Token::new(token_type, literal.to_string(), start_pos, self.position)
+    }
+
+    /// Match a numeric literal (integer or decimal)
+    fn match_number(&mut self, start_pos: usize) -> ParseResult<Option<Token>> {
+        // Consume leading digits
+        while self.position < self.input.len() && self.current_char().is_ascii_digit() {
+            self.advance();
+        }
+        let image = self.input[start_pos..self.position].to_string();
+        return Ok(Some(Token::new(
+            TokenType::INTEGER,
+            image,
+            start_pos,
+            self.position,
+        )));
     }
 
     /// Skip whitespace and ignored tokens
@@ -256,8 +178,6 @@ impl Lexer {
                 self.advance();
                 continue;
             }
-
-            // TODO: Skip comments based on grammar definitions
 
             break;
         }
