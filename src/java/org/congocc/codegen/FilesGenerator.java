@@ -80,7 +80,7 @@ public class FilesGenerator {
         this.generateRootApi = appSettings.getRootAPIPackage() == null;
         this.codeInjector = grammar.getInjector();
         this.parserOutputDirectory = appSettings.getParserOutputDirectory();
-        this.nodeOutputDirectory = appSettings.getNodeOutputDirectory();
+        this.nodeOutputDirectory = (codeLang == RUST) ? parserOutputDirectory : appSettings.getNodeOutputDirectory();
     }
 
     public void generateAll() throws IOException {
