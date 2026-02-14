@@ -133,9 +133,8 @@ The `examples/` directory contains production-quality grammars:
 - **cics/** - CICS language
 - **arithmetic/** - Simple arithmetic (good starting point)
 - **rust-test/** - Rust examples with generated Rust parsers:
-  - `arithmetic/` - Simple arithmetic expression parser
-  - `sqlexpr/` - SQL expression parser (boolean logic, comparisons, LIKE, IN, BETWEEN, IS NULL)
-  - Top-level standalone test executables (`test_arena.rs`, `test_lexer.rs`, `test_parser.rs`)
+  - `arithmetic/` - Simple arithmetic expression parser (45 integration tests + 1 visitor test)
+  - `sqlexpr/` - SQL expression parser (boolean logic, comparisons, LIKE, IN, BETWEEN, IS NULL; 65 tests including 6 visitor tests)
 
 Start with JSON, then Lua, then Python/Java/C# in order of increasing complexity.
 
@@ -175,9 +174,9 @@ The Rust code generator consists of:
   - `lib.rs` - Module root with public API and re-exports of typed operator enums
   - `arena.rs` - Arena allocator with typed operator enums, pattern-specific node fields, and pretty-print
   - `tokens.rs` - Token type definitions
-  - `lexer.rs` - Lexical analyzer (basic; skip-existing for hand-written lexers)
+  - `lexer.rs` - Lexical analyzer (operators, identifiers, keywords, numbers, string literals)
   - `parser.rs` - Complete recursive descent parser with pattern-based code generation
-  - `visitor.rs` - Visitor pattern (closure walker + depth-first iterator)
+  - `visitor.rs` - Depth-first AST visitor with `VisitControl` (Continue, SkipChildren, Stop)
   - `error.rs` - Error types with location tracking
   - `Cargo.toml` - Package manifest (Rust 2021 edition)
 - `src/templates/rust/tests/basic.rs.ctl` - Template for generating boilerplate integration tests
@@ -208,15 +207,15 @@ GitHub Actions workflow at `.github/workflows/core-tests.yml`:
 ## Rust Development Notes
 
 - Rust code generation is newer than Java/Python/C#; no Ant targets exist for Rust yet
-- **Parser/arena are fully generated**: Templates produce complete, working parsers with typed operator enums. Regeneration always overwrites `parser.rs`, `arena.rs`, `visitor.rs`, `lib.rs`, `error.rs`, and `Cargo.toml`
-- **Lexer/tokens skip-existing**: `lexer.rs` and `tokens.rs` are skipped if they already exist, because the lexer template doesn't handle regex-based tokens (identifiers, string literals). Complex grammars like `sqlexpr` need hand-written lexers
+- **All Rust files are fully generated**: Templates produce complete, working parsers including lexer, tokens, parser, arena, visitor, lib, error, and Cargo.toml. Regeneration always overwrites all files
 - **Pattern-based generation**: `RustProductionInfo.java` analyzes each grammar production's expansion tree and classifies it as ROOT, INFIX, SEPARATOR, PREFIX, CHOICE, or OPTIONAL_SUFFIX. Templates use this metadata to generate typed operator enums (e.g., `AdditiveOp`, `ComparisonOp`) and pattern-specific parsing code
+- **Visitor pattern**: Generated `visitor.rs` provides `Arena::visit()` for depth-first traversal. The callback receives `(node_id, node, arena, depth, options)` and returns `VisitControl` (Continue, SkipChildren, Stop). Caller state is passed via `options: Option<&dyn Any>`; use `Cell`/`RefCell` for interior mutability. See `examples/rust-test/arithmetic/tests/visitors/` for a reference implementation
 - After modifying Rust templates, regenerate and test manually:
   ```bash
   ant clean jar
-  java -jar congocc.jar -lang rust -d examples/rust-test/arithmetic/src examples/rust-test/arithmetic/SimpleArithmetic.ccc
+  java -jar congocc.jar -lang rust -d examples/rust-test/arithmetic examples/rust-test/arithmetic/SimpleArithmetic.ccc
   cd examples/rust-test/arithmetic && cargo test
-  java -jar congocc.jar -lang rust -d examples/rust-test/sqlexpr/src examples/rust-test/sqlexpr/SqlExpr.ccc
+  java -jar congocc.jar -lang rust -d examples/rust-test/sqlexpr examples/rust-test/sqlexpr/SqlExpr.ccc
   cd examples/rust-test/sqlexpr && cargo test
   ```
 

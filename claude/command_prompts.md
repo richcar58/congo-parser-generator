@@ -98,4 +98,29 @@ The github repository at https://github.com/richcar58/congo-parser-generator.git
 
 The goal is to develop a plan for correctly generating and regenerating complete parsers all the time.  The generated parser.rs content should be the same as the current content.  Regeneration should output the same code and that code should pass all integration tests as they are currently written.  Append all learnings to .claude/Learnings.md.
 
+## Create a Visitor Integration Test
 
+The goal of this task to provide a visitor implementation example, to exercise that implementation and the visitor framework in general, and to provide guidelines to users that want to implement their own visitors.
+
+The two primary artifacts that will be created are:
+    1. The examples/rust-test/arithmetic/visitors/arithmetic_visitor.rs visitor implementation.
+        1. This file defines the callback function, *count_node()*, that processes each AST node by printing its information to stdout.
+    2. The examples/rust-test/arithmetic/tests/visitor_test.rs integration test driver.
+        1. This program runs the visitor integration test when "cargo test" is called.
+
+Here are the high-level implementation steps:
+
+1. In arithmetic_visitor.rs, generate the public function *count_node()* that will execute on each visited node.  count_node() will output the following information for each node, one line per node:  
+    1. A monotonically increasing node number.
+    2. The depth that the node resides at in the AST.
+    3. The type of the AST node.
+    4. Each line of output should be indented depth * 2 spaces.  The AST's root node has a depth of 0.
+2. In visitor_test.rs, test driver performs the following: 
+    1. Generate a valid arithmetic expression that contains 6 arithmetic operators and 1 pair of parentheses.
+    2. Parse the arithmetic expression and attain its root node.
+    3. Print the arithmetic expression string before visiting any nodes.
+    3. Call the Arena.visit() method using the root node and count_node() function as parameters.
+
+Pay special attention to how node numbers are calculated since they represent mutable state passed to count_node() each time it's called.  To handle this, the *options* parameter on the Arena.visit() method can be defined as a structure with interior mutability.  
+
+Please recommend an implementation plan for review that includes the changes needed to build, run and document the vistor_test.rs program.
