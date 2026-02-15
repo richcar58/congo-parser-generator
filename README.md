@@ -201,22 +201,38 @@ The generated Rust parser has **zero runtime dependencies** by default. However,
 
 #### Optional Serde Support
 
-To enable serialization of tokens and AST nodes, add to the generated `Cargo.toml`:
+Generated parsers include built-in, optional [serde](https://serde.rs) support. All AST types (`AstNode`, node structs, operator enums), tokens (`Token`, `TokenType`), indices (`NodeId`, `TokenId`), the `Arena` itself, and `ParseError` derive `Serialize` and `Deserialize` when the feature is enabled.
+
+To use it, enable the `serde` feature in the consuming crate's `Cargo.toml`:
 
 ```toml
-[dependencies.serde]
-version = "1.0"
-features = ["derive"]
-
-[features]
-default = []
-serde = ["dep:serde"]
+[dependencies]
+my_parser = { path = "../path/to/generated/parser", features = ["serde"] }
 ```
 
-Then build with:
+Or build/test directly with the feature flag:
+
 ```bash
 cargo build --features serde
+cargo test --features serde
 ```
+
+This enables full round-trip serialization to JSON (via `serde_json`), MessagePack, CBOR, or any other serde-compatible format:
+
+```rust
+use my_parser::{Parser, Arena, NodeId};
+
+let mut parser = Parser::new("1 + 2".to_string())?;
+let root = parser.parse()?;
+
+// Serialize the entire AST arena to JSON
+let json = serde_json::to_string_pretty(parser.arena())?;
+
+// Deserialize back
+let arena: Arena = serde_json::from_str(&json)?;
+```
+
+The feature is zero-cost when disabled — all serde annotations use `#[cfg_attr(feature = "serde", ...)]` and are completely compiled away without the feature flag.
 
 #### Memory Characteristics
 

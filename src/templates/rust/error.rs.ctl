@@ -7,6 +7,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 
 /// Error type for parsing failures
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParseError {
     /// Error message describing what went wrong
     pub message: String,

@@ -4,13 +4,16 @@ use crate::tokens::Token;
 
 /// Type-safe index for nodes in the arena
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NodeId(pub usize);
 
 /// Type-safe index for tokens in the arena
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TokenId(pub usize);
 
 /// Arena that owns all AST nodes and tokens
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Arena {
     /// All AST nodes
     nodes: Vec<AstNode>,
@@ -245,6 +248,7 @@ impl Default for Arena {
 
 /// Enum containing all AST node types
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AstNode {
     /// AST node: SqlExpression
     SqlExpression(SqlExpressionNode),
@@ -270,6 +274,7 @@ pub enum AstNode {
 
 /// Comparison operation type for ComparisonExpression
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ComparisonOp {
     /// =
     Eq,
@@ -297,6 +302,7 @@ pub enum ComparisonOp {
 
 /// Operator for AdditiveExpression
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AdditiveOp {
     /// +
     Add,
@@ -306,6 +312,7 @@ pub enum AdditiveOp {
 
 /// Operator for MultiplicativeExpression
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum MultiplicativeOp {
     /// *
     Mul,
@@ -315,6 +322,7 @@ pub enum MultiplicativeOp {
 
 /// AST node for SqlExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SqlExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -341,6 +349,7 @@ impl SqlExpressionNode {
 
 /// AST node for OrExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OrExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -367,6 +376,7 @@ impl OrExpressionNode {
 
 /// AST node for AndExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AndExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -393,6 +403,7 @@ impl AndExpressionNode {
 
 /// AST node for NotExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NotExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -422,6 +433,7 @@ impl NotExpressionNode {
 
 /// AST node for ComparisonExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ComparisonExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -451,6 +463,7 @@ impl ComparisonExpressionNode {
 
 /// AST node for ValueList production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ValueListNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -477,6 +490,7 @@ impl ValueListNode {
 
 /// AST node for AdditiveExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AdditiveExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -530,6 +544,7 @@ impl AdditiveExpressionNode {
 
 /// AST node for MultiplicativeExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MultiplicativeExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -583,6 +598,7 @@ impl MultiplicativeExpressionNode {
 
 /// AST node for UnaryExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnaryExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,
@@ -612,6 +628,7 @@ impl UnaryExpressionNode {
 
 /// AST node for PrimaryExpression production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PrimaryExpressionNode {
     /// Parent node (if any)
     pub parent: Option<NodeId>,

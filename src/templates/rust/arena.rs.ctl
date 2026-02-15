@@ -4,13 +4,16 @@ use crate::tokens::Token;
 
 /// Type-safe index for nodes in the arena
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NodeId(pub usize);
 
 /// Type-safe index for tokens in the arena
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TokenId(pub usize);
 
 /// Arena that owns all AST nodes and tokens
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Arena {
     /// All AST nodes
     nodes: Vec<AstNode>,
@@ -196,6 +199,7 @@ impl Default for Arena {
 [#if grammar.productionTable?size > 0]
 /// Enum containing all AST node types
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AstNode {
 [#list grammar.parserProductions as production]
     /// AST node: ${production.name}
@@ -209,6 +213,7 @@ pub enum AstNode {
 [#if info.pattern == "infix" && info.hasOperatorEnum]
 /// Operator for ${production.name}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ${info.operatorEnumName} {
 [#list info.operatorVariants as v]
     /// ${v.display}
@@ -220,6 +225,7 @@ pub enum ${info.operatorEnumName} {
 [#if info.pattern == "optional_suffix" && info.hasSuffixEnum]
 /// Comparison operation type for ${production.name}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ${info.suffixEnumName} {
 [#list info.suffixVariants as v]
     /// ${v.display}
@@ -234,6 +240,7 @@ pub enum ${info.suffixEnumName} {
 [#var info = globals::analyzeRustProduction(production)]
 /// AST node for ${production.name} production
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ${production.name?cap_first}Node {
     /// Parent node (if any)
     pub parent: Option<NodeId>,

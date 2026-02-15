@@ -6,6 +6,7 @@ use std::fmt;
 ///
 /// Represents all possible token types recognized by the lexer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TokenType {
 [#list lexerData.regularExpressions as regexp]
     [#-- Clean up token names: remove leading underscore, convert _TOKEN_N to TokenN --]
@@ -47,6 +48,7 @@ impl fmt::Display for TokenType {
 ///
 /// Represents different lexical states the lexer can be in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LexicalState {
 [#list lexerData.lexicalStates as state]
     /// Lexical state: ${state.name}
@@ -62,6 +64,7 @@ pub enum LexicalState {
 /// - Position information (begin/end offsets)
 /// - Optional links to previous/next tokens
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Token {
     /// The type of this token
     pub token_type: TokenType,

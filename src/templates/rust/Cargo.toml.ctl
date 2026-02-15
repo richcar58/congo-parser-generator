@@ -18,11 +18,13 @@ lexer_class = "${settings.lexerClassName}"
 [/#if]
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
 
 [features]
 default = []
+serde = ["dep:serde"]
 
 [lib]
 name = "${settings.parserPackage?replace('.', '_')}"
