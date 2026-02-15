@@ -75,6 +75,40 @@ The callback receives `(node_id, node, arena, depth, options)` at each node and 
 
 The `options` parameter passes caller state into the callback as `&dyn Any`. Since this is a shared reference, use `Cell` or `RefCell` for interior mutability when the visitor needs to accumulate results.
 
+### Example: Counting Nodes
+
+```rust
+use std::cell::Cell;
+use std::any::Any;
+use sqlexpr::*;
+
+struct VisitorState {
+    count: Cell<usize>,
+}
+
+fn count_node(
+    _id: NodeId, node: &AstNode, _arena: &Arena,
+    depth: usize, options: Option<&dyn Any>,
+) -> VisitControl {
+    let state = options.unwrap().downcast_ref::<VisitorState>().unwrap();
+    let n = state.count.get() + 1;
+    state.count.set(n);
+    let indent = "  ".repeat(depth);
+    println!("{}Node {}: depth={}, type={:?}", indent, n, depth, node);
+    VisitControl::Continue
+}
+
+let input = "a = 1 AND b < 2 OR c > 3".to_string();
+let mut parser = Parser::new(input).unwrap();
+let root = parser.parse().unwrap();
+
+let state = VisitorState { count: Cell::new(0) };
+parser.arena().visit(root, &mut count_node, Some(&state));
+assert!(state.count.get() > 0);
+```
+
+See `tests/visitors/sqlexpr_visitor.rs` for the full implementation with diagnostic output.
+
 ## Serde Support
 
 The generated parser includes optional [serde](https://serde.rs) support behind a feature flag. When enabled, all AST node types, operator enums, token types, and error types derive `Serialize` and `Deserialize`.
@@ -100,23 +134,29 @@ sqlexpr = { path = "../sqlexpr", features = ["serde"] }
 
 ## Running Tests
 
-All 65 tests use `cargo test` from the `examples/rust-test/sqlexpr/` directory.
+All tests use `cargo test` from the `examples/rust-test/sqlexpr/` directory.
 
 ```bash
-# Run all tests (integration + visitor)
+# Run all tests (65 integration + 1 visitor)
 cargo test
 
 # Run all tests with printed output visible
 cargo test -- --nocapture
+
+# Run only the integration tests
+cargo test --test integration_tests
+
+# Run only the visitor test
+cargo test --test visitor_test
+
+# Run visitor test with output visible
+cargo test --test visitor_test -- --nocapture
 
 # Run a single test by name
 cargo test test_simple_equality
 
 # Run tests matching a pattern
 cargo test test_pretty_print
-
-# Run visitor tests
-cargo test test_visitor
 ```
 
 ## File Layout
@@ -133,5 +173,9 @@ sqlexpr/
 ├── visitor.rs                    Depth-first visitor (generated)
 ├── error.rs                      Error types (generated)
 └── tests/
-    └── integration_test.rs       65 tests (parsing, AST, errors, visitor)
+    ├── integration_test.rs       65 integration tests
+    ├── visitor_test.rs           Visitor traversal test
+    └── visitors/
+        ├── mod.rs                Module declaration
+        └── sqlexpr_visitor.rs    Visitor callback implementation
 ```

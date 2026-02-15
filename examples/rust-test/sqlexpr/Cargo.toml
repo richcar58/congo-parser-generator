@@ -30,3 +30,7 @@ path = "lib.rs"
 name = "integration_tests"
 path = "tests/integration_test.rs"
 
+[[test]]
+name = "visitor_test"
+path = "tests/visitor_test.rs"
+
