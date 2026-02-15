@@ -251,7 +251,7 @@ The feature is zero-cost when disabled — all serde annotations use `#[cfg_attr
 
 The `examples/rust-test/` directory contains two working Rust parser examples with comprehensive integration tests:
 
-#### Arithmetic Parser
+#### Arithmetic Parser [(link)](examples/rust-test/arithmetic/README.md)
 
 A simple arithmetic expression parser supporting `+`, `-`, `*`, `/`, parentheses, and integers.
 
@@ -265,7 +265,7 @@ java -jar congocc.jar -lang rust -d src SimpleArithmetic.ccc
 cargo test
 ```
 
-#### SQL Expression Parser
+#### SQL Expression Parser [(link)](examples/rust-test/sqlexpr/README.md)
 
 A SQL filter expression parser supporting boolean operators (`AND`, `OR`, `NOT`), comparisons (`=`, `<>`, `<`, `>`, `<=`, `>=`), `LIKE`, `IN`, `BETWEEN`, `IS NULL`/`IS NOT NULL`, arithmetic, and literals.
 
