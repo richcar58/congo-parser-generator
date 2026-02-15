@@ -82,8 +82,6 @@ CongoCC generates a complete Rust crate with the following structure:
 - **`visitor.rs`** - Closure-based depth-first AST visitor
 - **`Cargo.toml`** - Rust package manifest
 
-> **Note on `parser.rs`:** The generated `parser.rs` contains method stubs (`TODO`) for each grammar production. You must implement the parsing logic by hand. The other files (`arena.rs`, `tokens.rs`, `lexer.rs`, `visitor.rs`, etc.) are fully generated from your grammar. When you regenerate, **existing files are not overwritten**, so your hand-written parser logic is preserved and only new files (e.g. `visitor.rs`) are created.
-
 ### Compiling the Generated Parser
 
 The generated code is a standard Rust library crate. To compile it:
@@ -98,9 +96,14 @@ The generated code is a standard Rust library crate. To compile it:
    cargo build
    ```
 
-3. Run tests (if you've added any):
+3. Run tests:
    ```bash
    cargo test
+   ```
+
+4. Run tests (showing output):
+   ```bash
+   cargo test -- --nocapture
    ```
 
 ### Integrating into Your Application
