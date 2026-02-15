@@ -179,3 +179,7 @@ sqlexpr/
         ├── mod.rs                Module declaration
         └── sqlexpr_visitor.rs    Visitor callback implementation
 ```
+
+## Acknowledgments
+
+Anthropic's Claude (Claude Code 2.1.42, Opus 4.6) was used to generate most of the Rust code and documentation in this project.
