@@ -113,18 +113,18 @@ impl Lexer {
 [#list lexerData.regularExpressions as regexp]
 [#if !regexp.private && (!regexp.tokenProduction?? || regexp.tokenProduction.kind?string != "SKIPPED")]
 [#if regexp.class.simpleName == "RegexpStringLiteral" && !regexp.ignoreCase && regexp.literalString?length >= 4]
-        if self.matches_string("${regexp.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${regexp.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(regexp.literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(regexp.literalString)}", start_pos)));
         }
 [#elseif regexp.class.simpleName == "RegexpChoice"]
 [#list regexp.choices as choice]
 [#if choice.class.simpleName == "RegexpStringLiteral" && choice.literalString?length >= 4]
-        if self.matches_string("${choice.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${choice.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(choice.literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(choice.literalString)}", start_pos)));
         }
 [#elseif choice.class.simpleName == "RegexpSequence" && choice.units?size == 1 && choice.units[0].class.simpleName == "RegexpStringLiteral" && choice.units[0].literalString?length >= 4]
-        if self.matches_string("${choice.units[0].literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${choice.units[0].literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(choice.units[0].literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(choice.units[0].literalString)}", start_pos)));
         }
 [/#if]
 [/#list]
@@ -135,18 +135,18 @@ impl Lexer {
 [#list lexerData.regularExpressions as regexp]
 [#if !regexp.private && (!regexp.tokenProduction?? || regexp.tokenProduction.kind?string != "SKIPPED")]
 [#if regexp.class.simpleName == "RegexpStringLiteral" && !regexp.ignoreCase && regexp.literalString?length == 3]
-        if self.matches_string("${regexp.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${regexp.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(regexp.literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(regexp.literalString)}", start_pos)));
         }
 [#elseif regexp.class.simpleName == "RegexpChoice"]
 [#list regexp.choices as choice]
 [#if choice.class.simpleName == "RegexpStringLiteral" && choice.literalString?length == 3]
-        if self.matches_string("${choice.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${choice.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(choice.literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(choice.literalString)}", start_pos)));
         }
 [#elseif choice.class.simpleName == "RegexpSequence" && choice.units?size == 1 && choice.units[0].class.simpleName == "RegexpStringLiteral" && choice.units[0].literalString?length == 3]
-        if self.matches_string("${choice.units[0].literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${choice.units[0].literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(choice.units[0].literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(choice.units[0].literalString)}", start_pos)));
         }
 [/#if]
 [/#list]
@@ -157,18 +157,18 @@ impl Lexer {
 [#list lexerData.regularExpressions as regexp]
 [#if !regexp.private && (!regexp.tokenProduction?? || regexp.tokenProduction.kind?string != "SKIPPED")]
 [#if regexp.class.simpleName == "RegexpStringLiteral" && !regexp.ignoreCase && regexp.literalString?length == 2]
-        if self.matches_string("${regexp.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${regexp.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(regexp.literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(regexp.literalString)}", start_pos)));
         }
 [#elseif regexp.class.simpleName == "RegexpChoice"]
 [#list regexp.choices as choice]
 [#if choice.class.simpleName == "RegexpStringLiteral" && choice.literalString?length == 2]
-        if self.matches_string("${choice.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${choice.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(choice.literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(choice.literalString)}", start_pos)));
         }
 [#elseif choice.class.simpleName == "RegexpSequence" && choice.units?size == 1 && choice.units[0].class.simpleName == "RegexpStringLiteral" && choice.units[0].literalString?length == 2]
-        if self.matches_string("${choice.units[0].literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}") {
-            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${choice.units[0].literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}", start_pos)));
+        if self.matches_string("${globals::rustEscapeString(choice.units[0].literalString)}") {
+            return Ok(Some(self.consume_literal(TokenType::${regexp.label?replace("_TOKEN_", "Token")}, "${globals::rustEscapeString(choice.units[0].literalString)}", start_pos)));
         }
 [/#if]
 [/#list]
@@ -184,11 +184,11 @@ impl Lexer {
 [#list lexerData.regularExpressions as regexp]
 [#if !regexp.private && (!regexp.tokenProduction?? || regexp.tokenProduction.kind?string != "SKIPPED")]
 [#if regexp.class.simpleName == "RegexpStringLiteral" && !regexp.ignoreCase && regexp.literalString?length == 1]
-            '${regexp.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}' => {
+            '${globals::rustEscapeString(regexp.literalString)}' => {
                 self.advance();
                 return Ok(Some(Token::new(
                     TokenType::${regexp.label?replace("_TOKEN_", "Token")},
-                    "${regexp.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}".to_string(),
+                    "${globals::rustEscapeString(regexp.literalString)}".to_string(),
                     start_pos,
                     self.position,
                 )));
@@ -197,21 +197,21 @@ impl Lexer {
 [#if regexp.class.simpleName == "RegexpChoice"]
 [#list regexp.choices as choice]
 [#if choice.class.simpleName == "RegexpStringLiteral" && choice.literalString?length == 1]
-            '${choice.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}' => {
+            '${globals::rustEscapeString(choice.literalString)}' => {
                 self.advance();
                 return Ok(Some(Token::new(
                     TokenType::${regexp.label?replace("_TOKEN_", "Token")},
-                    "${choice.literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}".to_string(),
+                    "${globals::rustEscapeString(choice.literalString)}".to_string(),
                     start_pos,
                     self.position,
                 )));
             }
 [#elseif choice.class.simpleName == "RegexpSequence" && choice.units?size == 1 && choice.units[0].class.simpleName == "RegexpStringLiteral" && choice.units[0].literalString?length == 1]
-            '${choice.units[0].literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}' => {
+            '${globals::rustEscapeString(choice.units[0].literalString)}' => {
                 self.advance();
                 return Ok(Some(Token::new(
                     TokenType::${regexp.label?replace("_TOKEN_", "Token")},
-                    "${choice.units[0].literalString?replace("\\", "\\\\")?replace("\"", "\\\"")}".to_string(),
+                    "${globals::rustEscapeString(choice.units[0].literalString)}".to_string(),
                     start_pos,
                     self.position,
                 )));

@@ -7,6 +7,7 @@ use std::fmt;
 /// Represents all possible token types recognized by the lexer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(non_camel_case_types)]
 pub enum TokenType {
 [#list lexerData.regularExpressions as regexp]
     [#-- Clean up token names: remove leading underscore, convert _TOKEN_N to TokenN --]

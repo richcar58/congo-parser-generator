@@ -459,6 +459,34 @@ public class TemplateGlobals {
         return RustProductionInfo.analyze(production);
     }
 
+    /**
+     * Escape a string for use inside Rust string or char literals.
+     * Unlike addEscapes(), uses Rust-valid escapes (\x0c instead of \f, etc.)
+     */
+    public String rustEscapeString(String s) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            switch (ch) {
+                case '\\' -> sb.append("\\\\");
+                case '"'  -> sb.append("\\\"");
+                case '\'' -> sb.append("\\'");
+                case '\t' -> sb.append("\\t");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\0' -> sb.append("\\0");
+                default -> {
+                    if (Character.isISOControl(ch)) {
+                        sb.append(String.format("\\x%02x", (int) ch));
+                    } else {
+                        sb.append(ch);
+                    }
+                }
+            }
+        }
+        return sb.toString();
+    }
+
     public List<String> getSortedNodeClassNames() {
         Sequencer seq = new Sequencer();
         String pkg = appSettings.getNodePackage();

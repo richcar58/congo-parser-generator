@@ -11,50 +11,50 @@ use std::fmt;
 pub enum TokenType {
     /// Token: EOF
         EOF,
+    /// Token: _TOKEN_1
+        Token1,
+    /// Token: _TOKEN_2
+        Token2,
+    /// Token: _TOKEN_3
+        Token3,
+    /// Token: _TOKEN_4
+        Token4,
+    /// Token: _TOKEN_5
+        Token5,
+    /// Token: NOT
+        NOT,
     /// Token: AND
         AND,
     /// Token: OR
         OR,
-    /// Token: NOT
-        NOT,
+    /// Token: BETWEEN
+        BETWEEN,
+    /// Token: LIKE
+        LIKE,
+    /// Token: ESCAPE
+        ESCAPE,
+    /// Token: IN
+        IN,
+    /// Token: IS
+        IS,
     /// Token: TRUE
         TRUE,
     /// Token: FALSE
         FALSE,
     /// Token: NULL
         NULL,
-    /// Token: LIKE
-        LIKE,
-    /// Token: IN
-        IN,
-    /// Token: BETWEEN
-        BETWEEN,
-    /// Token: IS
-        IS,
-    /// Token: EQ
-        EQ,
-    /// Token: LT
-        LT,
-    /// Token: GT
-        GT,
-    /// Token: LE
-        LE,
-    /// Token: GE
-        GE,
-    /// Token: PLUS
-        PLUS,
-    /// Token: MINUS
-        MINUS,
-    /// Token: STAR
-        STAR,
-    /// Token: SLASH
-        SLASH,
-    /// Token: LPAREN
-        LPAREN,
-    /// Token: RPAREN
-        RPAREN,
-    /// Token: COMMA
-        COMMA,
+    /// Token: _TOKEN_17
+        Token17,
+    /// Token: _TOKEN_18
+        Token18,
+    /// Token: _TOKEN_19
+        Token19,
+    /// Token: _TOKEN_20
+        Token20,
+    /// Token: _TOKEN_21
+        Token21,
+    /// Token: _TOKEN_22
+        Token22,
     /// Token: _TOKEN_23
         Token23,
     /// Token: _TOKEN_24
@@ -63,16 +63,30 @@ pub enum TokenType {
         Token25,
     /// Token: _TOKEN_26
         Token26,
-    /// Token: NE
-        NE,
-    /// Token: INTEGER_LITERAL
-        INTEGER_LITERAL,
+    /// Token: _TOKEN_27
+        Token27,
+    /// Token: _TOKEN_28
+        Token28,
+    /// Token: _TOKEN_29
+        Token29,
+    /// Token: _TOKEN_30
+        Token30,
+    /// Token: LINE_COMMENT
+        LINE_COMMENT,
+    /// Token: BLOCK_COMMENT
+        BLOCK_COMMENT,
     /// Token: DECIMAL_LITERAL
         DECIMAL_LITERAL,
+    /// Token: HEX_LITERAL
+        HEX_LITERAL,
+    /// Token: OCTAL_LITERAL
+        OCTAL_LITERAL,
+    /// Token: FLOATING_POINT_LITERAL
+        FLOATING_POINT_LITERAL,
     /// Token: STRING_LITERAL
         STRING_LITERAL,
-    /// Token: IDENTIFIER
-        IDENTIFIER,
+    /// Token: ID
+        ID,
     /// Invalid token marker
     INVALID,
 }
@@ -81,37 +95,44 @@ impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TokenType::EOF => write!(f, "EOF"),
+            TokenType::Token1 => write!(f, "_TOKEN_1"),
+            TokenType::Token2 => write!(f, "_TOKEN_2"),
+            TokenType::Token3 => write!(f, "_TOKEN_3"),
+            TokenType::Token4 => write!(f, "_TOKEN_4"),
+            TokenType::Token5 => write!(f, "_TOKEN_5"),
+            TokenType::NOT => write!(f, "NOT"),
             TokenType::AND => write!(f, "AND"),
             TokenType::OR => write!(f, "OR"),
-            TokenType::NOT => write!(f, "NOT"),
+            TokenType::BETWEEN => write!(f, "BETWEEN"),
+            TokenType::LIKE => write!(f, "LIKE"),
+            TokenType::ESCAPE => write!(f, "ESCAPE"),
+            TokenType::IN => write!(f, "IN"),
+            TokenType::IS => write!(f, "IS"),
             TokenType::TRUE => write!(f, "TRUE"),
             TokenType::FALSE => write!(f, "FALSE"),
             TokenType::NULL => write!(f, "NULL"),
-            TokenType::LIKE => write!(f, "LIKE"),
-            TokenType::IN => write!(f, "IN"),
-            TokenType::BETWEEN => write!(f, "BETWEEN"),
-            TokenType::IS => write!(f, "IS"),
-            TokenType::EQ => write!(f, "EQ"),
-            TokenType::LT => write!(f, "LT"),
-            TokenType::GT => write!(f, "GT"),
-            TokenType::LE => write!(f, "LE"),
-            TokenType::GE => write!(f, "GE"),
-            TokenType::PLUS => write!(f, "PLUS"),
-            TokenType::MINUS => write!(f, "MINUS"),
-            TokenType::STAR => write!(f, "STAR"),
-            TokenType::SLASH => write!(f, "SLASH"),
-            TokenType::LPAREN => write!(f, "LPAREN"),
-            TokenType::RPAREN => write!(f, "RPAREN"),
-            TokenType::COMMA => write!(f, "COMMA"),
+            TokenType::Token17 => write!(f, "_TOKEN_17"),
+            TokenType::Token18 => write!(f, "_TOKEN_18"),
+            TokenType::Token19 => write!(f, "_TOKEN_19"),
+            TokenType::Token20 => write!(f, "_TOKEN_20"),
+            TokenType::Token21 => write!(f, "_TOKEN_21"),
+            TokenType::Token22 => write!(f, "_TOKEN_22"),
             TokenType::Token23 => write!(f, "_TOKEN_23"),
             TokenType::Token24 => write!(f, "_TOKEN_24"),
             TokenType::Token25 => write!(f, "_TOKEN_25"),
             TokenType::Token26 => write!(f, "_TOKEN_26"),
-            TokenType::NE => write!(f, "NE"),
-            TokenType::INTEGER_LITERAL => write!(f, "INTEGER_LITERAL"),
+            TokenType::Token27 => write!(f, "_TOKEN_27"),
+            TokenType::Token28 => write!(f, "_TOKEN_28"),
+            TokenType::Token29 => write!(f, "_TOKEN_29"),
+            TokenType::Token30 => write!(f, "_TOKEN_30"),
+            TokenType::LINE_COMMENT => write!(f, "LINE_COMMENT"),
+            TokenType::BLOCK_COMMENT => write!(f, "BLOCK_COMMENT"),
             TokenType::DECIMAL_LITERAL => write!(f, "DECIMAL_LITERAL"),
+            TokenType::HEX_LITERAL => write!(f, "HEX_LITERAL"),
+            TokenType::OCTAL_LITERAL => write!(f, "OCTAL_LITERAL"),
+            TokenType::FLOATING_POINT_LITERAL => write!(f, "FLOATING_POINT_LITERAL"),
             TokenType::STRING_LITERAL => write!(f, "STRING_LITERAL"),
-            TokenType::IDENTIFIER => write!(f, "IDENTIFIER"),
+            TokenType::ID => write!(f, "ID"),
             TokenType::INVALID => write!(f, "INVALID"),
         }
     }
