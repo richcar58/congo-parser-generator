@@ -390,6 +390,7 @@ impl Parser {
     }
 
     /// Parse: PrimaryExpression
+    #[allow(clippy::if_same_then_else)]
     fn parse_primary_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();

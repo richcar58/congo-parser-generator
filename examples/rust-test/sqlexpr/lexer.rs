@@ -243,9 +243,9 @@ impl Lexer {
             self.advance();
         }
         // Check for decimal point followed by digits
-        if self.position < self.input.len() && self.current_char() == '.' {
-            if let Some(next_ch) = self.peek(1) {
-                if next_ch.is_ascii_digit() {
+        if self.position < self.input.len() && self.current_char() == '.' 
+            && let Some(next_ch) = self.peek(1) 
+                && next_ch.is_ascii_digit() {
                     self.advance(); // consume '.'
                     while self.position < self.input.len() && self.current_char().is_ascii_digit() {
                         self.advance();
@@ -258,15 +258,14 @@ impl Lexer {
                         self.position,
                     )));
                 }
-            }
-        }
+        
         let image = self.input[start_pos..self.position].to_string();
-        return Ok(Some(Token::new(
+        Ok(Some(Token::new(
             TokenType::INTEGER_LITERAL,
             image,
             start_pos,
             self.position,
-        )));
+        )))
     }
 
     /// Match an identifier or keyword

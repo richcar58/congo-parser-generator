@@ -30,9 +30,6 @@
 #![warn(missing_docs)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::type_complexity)]
 
 mod error;
 mod tokens;
