@@ -1445,3 +1445,500 @@ fn test_parse_error_is_std_error() {
     let err = ParseError::new("test");
     let _: &dyn std::error::Error = &err; // Verify it implements std::error::Error
 }
+
+// ============================================================================
+// TESTS PORTED FROM sqlexpr
+// Adapted for sqlexpr2: identifiers replaced with literals (sqlexpr2 lexer does
+// not support non-keyword identifiers); AstNode types updated to sqlexpr2 variants.
+// Omitted: test_not_equal_bang (no != support), test_ast_comparison_op (no
+// ComparisonOp enum), test_lexer_identifiers (identifiers not supported).
+// ============================================================================
+
+// --- Positive: simple comparisons ---
+
+#[test]
+fn test_simple_equality() {
+    let mut parser = Parser::new("42 = 1".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Simple equality should parse");
+}
+
+#[test]
+fn test_not_equal() {
+    let mut parser = Parser::new("42 <> 1".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "<> comparison should parse");
+}
+
+#[test]
+fn test_less_than() {
+    let mut parser = Parser::new("42 < 100".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Less than should parse");
+}
+
+#[test]
+fn test_greater_than() {
+    let mut parser = Parser::new("42 > 100".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Greater than should parse");
+}
+
+#[test]
+fn test_less_or_equal() {
+    let mut parser = Parser::new("42 <= 100".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Less or equal should parse");
+}
+
+#[test]
+fn test_greater_or_equal() {
+    let mut parser = Parser::new("42 >= 100".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Greater or equal should parse");
+}
+
+// --- Positive: boolean operators ---
+
+#[test]
+fn test_and_expression() {
+    let mut parser = Parser::new("42 = 1 AND 99 = 2".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "AND expression should parse");
+}
+
+#[test]
+fn test_or_expression() {
+    let mut parser = Parser::new("42 = 1 OR 99 = 2".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "OR expression should parse");
+}
+
+#[test]
+fn test_not_expression() {
+    let mut parser = Parser::new("NOT 42 = 1".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "NOT expression should parse");
+}
+
+#[test]
+fn test_complex_boolean() {
+    let mut parser = Parser::new("(42 = 1 OR 99 = 2) AND NOT 0 = 3".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Complex boolean should parse");
+}
+
+#[test]
+fn test_case_insensitive_keywords() {
+    let mut parser = Parser::new("42 = 1 and 99 = 2 or 0 = 3".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Lowercase keywords should parse");
+}
+
+// --- Positive: special operators ---
+
+#[test]
+fn test_like_expression() {
+    let mut parser = Parser::new("'hello' LIKE 'foo%'".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "LIKE expression should parse");
+}
+
+#[test]
+fn test_in_expression() {
+    // Grammar requires stringLitteral items in IN list (not numeric literals)
+    let mut parser = Parser::new("42 IN ('a', 'b', 'c')".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "IN expression should parse");
+}
+
+#[test]
+fn test_in_strings() {
+    let mut parser = Parser::new("42 IN ('active', 'pending')".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "IN with strings should parse");
+}
+
+#[test]
+fn test_between_expression() {
+    let mut parser = Parser::new("42 BETWEEN 10 AND 100".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "BETWEEN expression should parse");
+}
+
+#[test]
+fn test_is_null() {
+    let mut parser = Parser::new("42 IS NULL".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "IS NULL should parse");
+}
+
+#[test]
+fn test_is_not_null() {
+    let mut parser = Parser::new("42 IS NOT NULL".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "IS NOT NULL should parse");
+}
+
+// --- Positive: literals (same names as sqlexpr; sqlexpr2 already has test_parse_* variants) ---
+
+#[test]
+fn test_integer_literal() {
+    let mut parser = Parser::new("42".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Integer literal should parse");
+}
+
+#[test]
+fn test_decimal_literal() {
+    let mut parser = Parser::new("3.14".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Decimal literal should parse");
+}
+
+#[test]
+fn test_string_literal() {
+    let mut parser = Parser::new("'hello world'".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "String literal should parse");
+}
+
+#[test]
+fn test_true_literal() {
+    let mut parser = Parser::new("true".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "TRUE literal should parse");
+}
+
+#[test]
+fn test_false_literal() {
+    let mut parser = Parser::new("false".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "FALSE literal should parse");
+}
+
+#[test]
+fn test_null_literal() {
+    let mut parser = Parser::new("null".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "NULL literal should parse");
+}
+
+// --- Positive: arithmetic ---
+
+#[test]
+fn test_addition() {
+    let mut parser = Parser::new("1 + 2".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Addition should parse");
+}
+
+#[test]
+fn test_subtraction() {
+    let mut parser = Parser::new("1 - 2".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Subtraction should parse");
+}
+
+#[test]
+fn test_multiplication() {
+    let mut parser = Parser::new("1 * 2".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Multiplication should parse");
+}
+
+#[test]
+fn test_division() {
+    let mut parser = Parser::new("1 / 2".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Division should parse");
+}
+
+#[test]
+fn test_unary_minus() {
+    let mut parser = Parser::new("-42".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Unary minus should parse");
+}
+
+#[test]
+fn test_arithmetic_comparison() {
+    let mut parser = Parser::new("1 + 2 * 2 > 100".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Arithmetic in comparison should parse");
+}
+
+// --- Positive: complex expressions ---
+
+#[test]
+fn test_complex_expression() {
+    let input = "TRUE AND (42 < 50 OR 99 > 10)".to_string();
+    let mut parser = Parser::new(input).unwrap();
+    assert!(parser.parse().is_ok(), "Complex expression should parse");
+}
+
+#[test]
+fn test_nested_parentheses() {
+    let mut parser = Parser::new("((42 = 1))".to_string()).unwrap();
+    assert!(parser.parse().is_ok(), "Nested parentheses should parse");
+}
+
+#[test]
+fn test_realistic_query() {
+    let input = "'a' = 'a' AND 42 BETWEEN 10 AND 100 AND 'hello' LIKE 'test%'".to_string();
+    let mut parser = Parser::new(input).unwrap();
+    assert!(parser.parse().is_ok(), "Realistic query should parse");
+}
+
+// --- Negative tests ---
+
+#[test]
+fn test_invalid_empty() {
+    let mut parser = Parser::new("".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "Empty input should fail");
+}
+
+#[test]
+fn test_invalid_just_and() {
+    let mut parser = Parser::new("AND".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "Just AND should fail");
+}
+
+#[test]
+fn test_invalid_double_operator() {
+    // "42 == 1" lexes as [42, =, =, 1]; second = is not a valid primary
+    let mut parser = Parser::new("42 == 1".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "Double equals should fail");
+}
+
+#[test]
+fn test_invalid_missing_rhs() {
+    let mut parser = Parser::new("42 =".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "Missing right side should fail");
+}
+
+#[test]
+fn test_invalid_missing_lhs() {
+    let mut parser = Parser::new("= 1".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "Missing left side should fail");
+}
+
+#[test]
+fn test_invalid_unbalanced_paren() {
+    let mut parser = Parser::new("(42 = 1".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "Unbalanced paren should fail");
+}
+
+#[test]
+fn test_invalid_empty_parens() {
+    let mut parser = Parser::new("()".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "Empty parens should fail");
+}
+
+#[test]
+fn test_invalid_in_no_list() {
+    let mut parser = Parser::new("42 IN ()".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "IN with empty list should fail");
+}
+
+#[test]
+fn test_invalid_between_missing_and() {
+    let mut parser = Parser::new("42 BETWEEN 1 2".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "BETWEEN without AND should fail");
+}
+
+#[test]
+fn test_invalid_like_no_string() {
+    let mut parser = Parser::new("42 LIKE 42".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "LIKE with non-string should fail");
+}
+
+#[test]
+fn test_invalid_trailing_and() {
+    let mut parser = Parser::new("42 = 1 AND".to_string()).unwrap();
+    assert!(parser.parse().is_err(), "Trailing AND should fail");
+}
+
+#[test]
+fn test_invalid_unterminated_string() {
+    let result = Parser::new("'unterminated".to_string());
+    assert!(result.is_err(), "Unterminated string should fail during lexer init");
+}
+
+// --- AST structure tests ---
+
+#[test]
+fn test_ast_simple_comparison() {
+    let mut parser = Parser::new("42 = 1".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+    match parser.arena().get_node(root) {
+        AstNode::JmsSelector(expr) => {
+            assert_eq!(expr.children.len(), 1, "JmsSelector should have 1 child");
+        }
+        _ => panic!("Expected JmsSelector"),
+    }
+}
+
+#[test]
+fn test_ast_and_has_two_children() {
+    let mut parser = Parser::new("42 = 1 AND 99 = 2".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+    match parser.arena().get_node(root) {
+        AstNode::JmsSelector(sql) => {
+            let or_id = sql.children[0];
+            match parser.arena().get_node(or_id) {
+                AstNode::OrExpression(or) => {
+                    let and_id = or.children[0];
+                    match parser.arena().get_node(and_id) {
+                        AstNode::AndExpression(and) => {
+                            assert_eq!(and.children.len(), 2, "AND should have 2 children");
+                        }
+                        _ => panic!("Expected AndExpression"),
+                    }
+                }
+                _ => panic!("Expected OrExpression"),
+            }
+        }
+        _ => panic!("Expected JmsSelector"),
+    }
+}
+
+// test_ast_comparison_op omitted: sqlexpr2 uses GENERIC tree walker for comparisonExpression
+// and does not expose a typed ComparisonOp enum.
+
+// --- Pretty-print tests ---
+
+#[test]
+fn test_pretty_print_simple() {
+    let mut parser = Parser::new("42 = 1".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+    let output = parser.arena().pretty_print(root, 0, parser.input());
+    println!("Pretty print output:\n{}", output);
+    assert!(output.contains("AST: \"42 = 1\""), "Should show original input");
+    // sqlexpr2 uses GENERIC for equalityExpression (no [=] operator display)
+    assert!(output.contains("EqualityExpression"), "Should contain EqualityExpression");
+    assert!(output.contains("Literal"), "Should contain Literal nodes for values");
+}
+
+#[test]
+fn test_pretty_print_and() {
+    let mut parser = Parser::new("42 = 1 AND 99 = 2".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+    let output = parser.arena().pretty_print(root, 0, parser.input());
+    println!("Pretty print output:\n{}", output);
+    assert!(output.contains("AST: \"42 = 1 AND 99 = 2\""), "Should show original input");
+    assert!(output.contains("AndExpression"), "Should contain AndExpression");
+    let literal_count = output.matches("Literal").count();
+    assert!(literal_count >= 2, "Should have at least 2 Literal nodes, found {}", literal_count);
+}
+
+#[test]
+fn test_pretty_print_complex() {
+    let input = "TRUE AND 42 > 100".to_string();
+    let mut parser = Parser::new(input).unwrap();
+    let root = parser.parse().unwrap();
+    let output = parser.arena().pretty_print(root, 0, parser.input());
+    println!("Pretty print output:\n{}", output);
+    assert!(output.contains("AST:"), "Should show original input header");
+    assert!(output.contains("AndExpression"), "Should contain AndExpression");
+}
+
+// --- Lexer tests ---
+
+#[test]
+fn test_lexer_keywords() {
+    let mut lexer = Lexer::new("AND OR NOT".to_string());
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::AND);
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::OR);
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::NOT);
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::EOF);
+}
+
+#[test]
+fn test_lexer_operators() {
+    // sqlexpr2 uses anonymous Token17-Token29 for operators
+    let mut lexer = Lexer::new("= <> < > <= >= + - * /".to_string());
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token17); // =
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token18); // <>
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token21); // <
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token19); // >
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token22); // <=
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token20); // >=
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token26); // +
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token27); // -
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token28); // *
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::Token29); // /
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::EOF);
+}
+
+#[test]
+fn test_lexer_literals() {
+    // In sqlexpr2 both integers and decimals use DECIMAL_LITERAL
+    let mut lexer = Lexer::new("42 3.14 'hello' true false null".to_string());
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::DECIMAL_LITERAL); // 42
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::DECIMAL_LITERAL); // 3.14
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::STRING_LITERAL);  // 'hello'
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::TRUE);
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::FALSE);
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::NULL);
+    assert_eq!(lexer.next_token().unwrap().token_type, TokenType::EOF);
+}
+
+// test_lexer_identifiers omitted: sqlexpr2 does not support non-keyword identifiers
+// (see test_lexer_non_keyword_identifier_fails)
+
+// --- Arena tests ---
+
+#[test]
+fn test_arena_node_allocation() {
+    let mut arena = Arena::new();
+    let tok = arena.alloc_token(Token::new(
+        TokenType::DECIMAL_LITERAL,
+        "42".to_string(),
+        0,
+        2,
+    ));
+    // In sqlexpr2 use Literal (sqlexpr used PrimaryExpressionNode which doesn't exist here)
+    let node = arena.alloc_node(AstNode::Literal(LiteralNode::new(tok, tok)));
+    assert_eq!(arena.get_token(tok).image, "42");
+    match arena.get_node(node) {
+        AstNode::Literal(lit) => {
+            assert_eq!(lit.begin_token, tok);
+        }
+        _ => panic!("Expected Literal"),
+    }
+}
+
+// --- Error message tests ---
+
+#[test]
+fn test_error_messages_include_position() {
+    let mut parser = Parser::new("= 1".to_string()).unwrap();
+    let err = parser.parse().unwrap_err();
+    let err_str = format!("{}", err);
+    assert!(
+        err_str.contains("position") || err_str.contains("0") || err_str.contains("Expected"),
+        "Error should include position info: {}",
+        err_str
+    );
+}
+
+#[test]
+fn test_error_messages_include_expected() {
+    let mut parser = Parser::new("42 =".to_string()).unwrap();
+    let err = parser.parse().unwrap_err();
+    let err_str = format!("{}", err);
+    assert!(
+        err_str.contains("Expected") || err_str.contains("expected"),
+        "Error should indicate expected token: {}",
+        err_str
+    );
+}
+
+// --- Visitor tests ---
+
+#[test]
+fn test_visitor_count_all_nodes() {
+    let mut parser = Parser::new("42 = 1".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+    let mut count = 0usize;
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, _depth, _opts| {
+            count += 1;
+            VisitControl::Continue
+        },
+        None,
+    );
+    assert!(count > 0, "Should visit at least one node");
+}
+
+#[test]
+fn test_visitor_depth_correctness() {
+    let mut parser = Parser::new("42 = 1".to_string()).unwrap();
+    let root = parser.parse().unwrap();
+    let mut depths = Vec::new();
+    parser.arena().visit(
+        root,
+        &mut |_id, _node, _arena, depth, _opts| {
+            depths.push(depth);
+            VisitControl::Continue
+        },
+        None,
+    );
+    assert_eq!(depths[0], 0, "Root should be at depth 0");
+    for &d in &depths[1..] {
+        assert!(d > 0, "Non-root nodes should have depth > 0");
+    }
+}
