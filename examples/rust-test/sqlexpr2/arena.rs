@@ -74,11 +74,11 @@ impl Arena {
             AstNode::AndExpression(n) => n.children.len() == 1,
             AstNode::EqualityExpression(n) => n.children.len() == 1,
             AstNode::ComparisonExpression(n) => n.children.len() == 1,
-            AstNode::AddExpression(n) => n.children.len() == 1,
-            AstNode::MultExpr(n) => n.children.len() == 1,
+            AstNode::AddExpression(n) => n.children.len() == 1 && n.operators.is_empty(),
+            AstNode::MultExpr(n) => n.children.len() == 1 && n.operators.is_empty(),
             AstNode::UnaryExpr(n) => n.children.len() == 1,
-            AstNode::PrimaryExpr(n) => n.children.len() == 1,
-            AstNode::Literal(n) => n.children.len() == 1,
+            AstNode::PrimaryExpr(_) => false,
+            AstNode::Literal(_) => false,
             AstNode::StringLitteral(n) => n.children.len() == 1,
             AstNode::Variable(n) => n.children.len() == 1,
         }
@@ -125,25 +125,23 @@ impl Arena {
                 }
             }
             AstNode::OrExpression(node) => {
-                if node.children.is_empty() {
-                    let value = &self.get_token(node.begin_token).image;
-                    result.push_str(&format!("{}OrExpression(\"{}\")\n", indent_str, value));
+                if node.children.len() > 1 {
+                    result.push_str(&format!("{}OrExpression [OR x{}]\n", indent_str, node.children.len() - 1));
                 } else {
                     result.push_str(&format!("{}OrExpression\n", indent_str));
-                    for child in &node.children {
-                        self.pretty_print_impl(*child, indent + 1, result);
-                    }
+                }
+                for child in &node.children {
+                    self.pretty_print_impl(*child, indent + 1, result);
                 }
             }
             AstNode::AndExpression(node) => {
-                if node.children.is_empty() {
-                    let value = &self.get_token(node.begin_token).image;
-                    result.push_str(&format!("{}AndExpression(\"{}\")\n", indent_str, value));
+                if node.children.len() > 1 {
+                    result.push_str(&format!("{}AndExpression [AND x{}]\n", indent_str, node.children.len() - 1));
                 } else {
                     result.push_str(&format!("{}AndExpression\n", indent_str));
-                    for child in &node.children {
-                        self.pretty_print_impl(*child, indent + 1, result);
-                    }
+                }
+                for child in &node.children {
+                    self.pretty_print_impl(*child, indent + 1, result);
                 }
             }
             AstNode::EqualityExpression(node) => {
@@ -169,25 +167,36 @@ impl Arena {
                 }
             }
             AstNode::AddExpression(node) => {
-                if node.children.is_empty() {
-                    let value = &self.get_token(node.begin_token).image;
-                    result.push_str(&format!("{}AddExpression(\"{}\")\n", indent_str, value));
+                if !node.operators.is_empty() {
+                    let ops: Vec<&str> = node.operators.iter()
+                        .map(|op| match op {
+                            AddOp::Token26 => "+",
+                            AddOp::Token27 => "-",
+                        })
+                        .collect();
+                    result.push_str(&format!("{}AddExpression [{}]\n", indent_str, ops.join(", ")));
                 } else {
                     result.push_str(&format!("{}AddExpression\n", indent_str));
-                    for child in &node.children {
-                        self.pretty_print_impl(*child, indent + 1, result);
-                    }
+                }
+                for child in &node.children {
+                    self.pretty_print_impl(*child, indent + 1, result);
                 }
             }
             AstNode::MultExpr(node) => {
-                if node.children.is_empty() {
-                    let value = &self.get_token(node.begin_token).image;
-                    result.push_str(&format!("{}MultExpr(\"{}\")\n", indent_str, value));
+                if !node.operators.is_empty() {
+                    let ops: Vec<&str> = node.operators.iter()
+                        .map(|op| match op {
+                            MultExprOp::Token28 => "*",
+                            MultExprOp::Token29 => "/",
+                            MultExprOp::Token30 => "%",
+                        })
+                        .collect();
+                    result.push_str(&format!("{}MultExpr [{}]\n", indent_str, ops.join(", ")));
                 } else {
                     result.push_str(&format!("{}MultExpr\n", indent_str));
-                    for child in &node.children {
-                        self.pretty_print_impl(*child, indent + 1, result);
-                    }
+                }
+                for child in &node.children {
+                    self.pretty_print_impl(*child, indent + 1, result);
                 }
             }
             AstNode::UnaryExpr(node) => {
@@ -203,8 +212,8 @@ impl Arena {
             }
             AstNode::PrimaryExpr(node) => {
                 if node.children.is_empty() {
-                    let value = &self.get_token(node.begin_token).image;
-                    result.push_str(&format!("{}PrimaryExpr(\"{}\")\n", indent_str, value));
+                    let token = self.get_token(node.begin_token);
+                    result.push_str(&format!("{}PrimaryExpr(\"{}\")\n", indent_str, token.image));
                 } else {
                     result.push_str(&format!("{}PrimaryExpr\n", indent_str));
                     for child in &node.children {
@@ -214,8 +223,8 @@ impl Arena {
             }
             AstNode::Literal(node) => {
                 if node.children.is_empty() {
-                    let value = &self.get_token(node.begin_token).image;
-                    result.push_str(&format!("{}Literal(\"{}\")\n", indent_str, value));
+                    let token = self.get_token(node.begin_token);
+                    result.push_str(&format!("{}Literal(\"{}\")\n", indent_str, token.image));
                 } else {
                     result.push_str(&format!("{}Literal\n", indent_str));
                     for child in &node.children {
@@ -283,6 +292,28 @@ pub enum AstNode {
     StringLitteral(StringLitteralNode),
     /// AST node: variable
     Variable(VariableNode),
+}
+
+/// Operator for addExpression
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AddOp {
+    /// +
+    Token26,
+    /// -
+    Token27,
+}
+
+/// Operator for multExpr
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum MultExprOp {
+    /// *
+    Token28,
+    /// /
+    Token29,
+    /// %
+    Token30,
 }
 
 /// AST node for JmsSelector production
@@ -428,6 +459,8 @@ pub struct AddExpressionNode {
     pub parent: Option<NodeId>,
     /// Child nodes
     pub children: Vec<NodeId>,
+    /// Operators between children: operators[i] is between children[i] and children[i+1]
+    pub operators: Vec<AddOp>,
     /// First token of this node
     pub begin_token: TokenId,
     /// Last token of this node
@@ -440,11 +473,36 @@ impl AddExpressionNode {
         AddExpressionNode {
             parent: None,
             children: Vec::new(),
+            operators: Vec::new(),
             begin_token,
             end_token,
         }
     }
 
+    /// Get the left operand (first child)
+    pub fn left<'a>(&self, arena: &'a Arena) -> &'a AstNode {
+        arena.get_node(self.children[0])
+    }
+
+    /// Get the right operand (second child for binary case)
+    pub fn right<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.get(1).map(|id| arena.get_node(*id))
+    }
+
+    /// Get operator at index (between children[i] and children[i+1])
+    pub fn op(&self, index: usize) -> Option<AddOp> {
+        self.operators.get(index).copied()
+    }
+
+    /// Get first operator (for binary expressions)
+    pub fn first_op(&self) -> Option<AddOp> {
+        self.operators.first().copied()
+    }
+
+    /// Iterator over (operator, operand) pairs after the first operand
+    pub fn op_operand_pairs(&self) -> impl Iterator<Item = (AddOp, NodeId)> + '_ {
+        self.operators.iter().copied().zip(self.children.iter().skip(1).copied())
+    }
 }
 
 /// AST node for multExpr production
@@ -455,6 +513,8 @@ pub struct MultExprNode {
     pub parent: Option<NodeId>,
     /// Child nodes
     pub children: Vec<NodeId>,
+    /// Operators between children: operators[i] is between children[i] and children[i+1]
+    pub operators: Vec<MultExprOp>,
     /// First token of this node
     pub begin_token: TokenId,
     /// Last token of this node
@@ -467,11 +527,36 @@ impl MultExprNode {
         MultExprNode {
             parent: None,
             children: Vec::new(),
+            operators: Vec::new(),
             begin_token,
             end_token,
         }
     }
 
+    /// Get the left operand (first child)
+    pub fn left<'a>(&self, arena: &'a Arena) -> &'a AstNode {
+        arena.get_node(self.children[0])
+    }
+
+    /// Get the right operand (second child for binary case)
+    pub fn right<'a>(&self, arena: &'a Arena) -> Option<&'a AstNode> {
+        self.children.get(1).map(|id| arena.get_node(*id))
+    }
+
+    /// Get operator at index (between children[i] and children[i+1])
+    pub fn op(&self, index: usize) -> Option<MultExprOp> {
+        self.operators.get(index).copied()
+    }
+
+    /// Get first operator (for binary expressions)
+    pub fn first_op(&self) -> Option<MultExprOp> {
+        self.operators.first().copied()
+    }
+
+    /// Iterator over (operator, operand) pairs after the first operand
+    pub fn op_operand_pairs(&self) -> impl Iterator<Item = (MultExprOp, NodeId)> + '_ {
+        self.operators.iter().copied().zip(self.children.iter().skip(1).copied())
+    }
 }
 
 /// AST node for unaryExpr production
@@ -526,6 +611,10 @@ impl PrimaryExprNode {
         }
     }
 
+    /// Get the token image (the actual value as string)
+    pub fn value<'a>(&self, arena: &'a Arena) -> &'a str {
+        &arena.get_token(self.begin_token).image
+    }
 }
 
 /// AST node for literal production
@@ -553,6 +642,10 @@ impl LiteralNode {
         }
     }
 
+    /// Get the token image (the actual value as string)
+    pub fn value<'a>(&self, arena: &'a Arena) -> &'a str {
+        &arena.get_token(self.begin_token).image
+    }
 }
 
 /// AST node for stringLitteral production

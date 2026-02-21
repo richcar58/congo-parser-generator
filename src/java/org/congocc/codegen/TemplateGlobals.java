@@ -460,6 +460,54 @@ public class TemplateGlobals {
     }
 
     /**
+     * Get the Rust-formatted token type names from an expansion's first set.
+     * Converts _TOKEN_N to TokenN to match the generated TokenType enum.
+     */
+    public List<String> getRustFirstSetTokenNames(Expansion exp) {
+        List<String> result = new ArrayList<>();
+        for (String name : exp.getFirstSet().getTokenNames()) {
+            result.add(rustTokenName(name));
+        }
+        return result;
+    }
+
+    private String rustTokenName(String name) {
+        if (name.startsWith("_TOKEN_")) {
+            return name.replace("_TOKEN_", "Token");
+        }
+        return name;
+    }
+
+    /**
+     * Extract the leading terminal token names from an expansion for
+     * generating inline multi-token lookahead conditions.
+     * Returns Rust-formatted token names for each lookahead position.
+     */
+    public List<String> getRustLookaheadTokens(Expansion exp) {
+        List<String> result = new ArrayList<>();
+        collectLeadingTerminals(exp, result);
+        return result;
+    }
+
+    private void collectLeadingTerminals(Expansion exp, List<String> result) {
+        String cls = exp.getSimpleName();
+        if ("Terminal".equals(cls)) {
+            result.add(rustTokenName(((Terminal) exp).getLabel()));
+        } else if ("ExpansionSequence".equals(cls)) {
+            for (Expansion unit : ((ExpansionSequence) exp).getUnits()) {
+                if (unit.getMaximumSize() == 0) continue; // skip CodeBlocks etc.
+                collectLeadingTerminals(unit, result);
+                if (unit.getMaximumSize() > 0) break; // stop after first syntactic unit
+            }
+        } else if ("ExpansionWithParentheses".equals(cls)) {
+            Expansion nested = exp.getNestedExpansion();
+            if (nested != null) {
+                collectLeadingTerminals(nested, result);
+            }
+        }
+    }
+
+    /**
      * Escape a string for use inside Rust string or char literals.
      * Unlike addEscapes(), uses Rust-valid escapes (\x0c instead of \f, etc.)
      */

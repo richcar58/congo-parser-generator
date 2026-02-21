@@ -257,8 +257,8 @@ impl Parser {
         node.children = children.clone();
 
         let node_id = self.arena.alloc_node(AstNode::ComparisonExpression(node));
-        for child in children {
-            self.set_parent(child, node_id);
+        for child_id in children {
+            self.set_parent(child_id, node_id);
         }
         Ok(node_id)
     }
@@ -390,7 +390,6 @@ impl Parser {
     }
 
     /// Parse: PrimaryExpression
-    #[allow(clippy::if_same_then_else)]
     fn parse_primary_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();
@@ -515,5 +514,15 @@ impl Parser {
         }
 
         Ok(&self.lookahead[n - 1])
+    }
+
+    /// Peek at the type of the token at lookahead position n (0 = current) without error.
+    /// Returns None if we can't read that far ahead.
+    #[allow(dead_code)]
+    fn lookahead_type(&mut self, n: usize) -> Option<TokenType> {
+        if n == 0 {
+            return Some(self.current_token.token_type);
+        }
+        self.lookahead(n).ok().map(|t| t.token_type)
     }
 }

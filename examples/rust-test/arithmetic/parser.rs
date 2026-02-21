@@ -256,4 +256,14 @@ impl Parser {
 
         Ok(&self.lookahead[n - 1])
     }
+
+    /// Peek at the type of the token at lookahead position n (0 = current) without error.
+    /// Returns None if we can't read that far ahead.
+    #[allow(dead_code)]
+    fn lookahead_type(&mut self, n: usize) -> Option<TokenType> {
+        if n == 0 {
+            return Some(self.current_token.token_type);
+        }
+        self.lookahead(n).ok().map(|t| t.token_type)
+    }
 }

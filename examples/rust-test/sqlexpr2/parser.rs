@@ -4,6 +4,8 @@ use crate::error::{ParseError, ParseResult};
 use crate::tokens::{Token, TokenType};
 use crate::lexer::Lexer;
 use crate::arena::{Arena, AstNode, NodeId, TokenId};
+use crate::arena::AddOp;
+use crate::arena::MultExprOp;
 use crate::arena::{
     JmsSelectorNode,
     OrExpressionNode,
@@ -71,135 +73,587 @@ impl Parser {
         self.parse_jms_selector()
     }
 
-    /// Parse: JmsSelector
+    /// Parse: JmsSelector -> orExpression <EOF>
     fn parse_jms_selector(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+
+        let child = self.parse_or_expression()?;
+
+        self.expect_token(TokenType::EOF)?;
         let end_token = self.current_token_id.unwrap_or(begin_token);
+
         let mut node = JmsSelectorNode::new(begin_token, end_token);
-        node.children = children;
+        node.children.push(child);
+
         let node_id = self.arena.alloc_node(AstNode::JmsSelector(node));
+        self.set_parent(child, node_id);
         Ok(node_id)
     }
 
-    /// Parse: orExpression
+    /// Parse: orExpression -> andExpression (OR andExpression)*
     fn parse_or_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children = Vec::new();
+
+        let first = self.parse_and_expression()?;
+        children.push(first);
+
+        while self.current_token.token_type == TokenType::OR {
+            self.consume_token()?;
+            let child = self.parse_and_expression()?;
+            children.push(child);
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = OrExpressionNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
+
         let node_id = self.arena.alloc_node(AstNode::OrExpression(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
         Ok(node_id)
     }
 
-    /// Parse: andExpression
+    /// Parse: andExpression -> equalityExpression (AND equalityExpression)*
     fn parse_and_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children = Vec::new();
+
+        let first = self.parse_equality_expression()?;
+        children.push(first);
+
+        while self.current_token.token_type == TokenType::AND {
+            self.consume_token()?;
+            let child = self.parse_equality_expression()?;
+            children.push(child);
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = AndExpressionNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
+
         let node_id = self.arena.alloc_node(AstNode::AndExpression(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
         Ok(node_id)
     }
 
-    /// Parse: equalityExpression
+    /// Parse: equalityExpression (generic)
     fn parse_equality_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children: Vec<NodeId> = Vec::new();
+
+        {
+            let child = self.parse_comparison_expression()?;
+            children.push(child);
+        }
+        loop {
+        if (
+            self.current_token.token_type == TokenType::Token17
+        ) {
+        self.expect_token(TokenType::Token17)?;
+        {
+            let child = self.parse_comparison_expression()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::Token18
+        ) {
+        self.expect_token(TokenType::Token18)?;
+        {
+            let child = self.parse_comparison_expression()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::IS
+        ) {
+        self.expect_token(TokenType::IS)?;
+        self.expect_token(TokenType::NULL)?;
+        }
+        else if (
+            self.current_token.token_type == TokenType::IS
+        ) {
+        self.expect_token(TokenType::IS)?;
+        self.expect_token(TokenType::NOT)?;
+        self.expect_token(TokenType::NULL)?;
+        }
+        else {
+            break;
+        }
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = EqualityExpressionNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
         let node_id = self.arena.alloc_node(AstNode::EqualityExpression(node));
+        for child_id in children {
+            self.set_parent(child_id, node_id);
+        }
         Ok(node_id)
     }
 
-    /// Parse: comparisonExpression
+    /// Parse: comparisonExpression (generic)
     fn parse_comparison_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children: Vec<NodeId> = Vec::new();
+
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        loop {
+        if (
+            self.current_token.token_type == TokenType::Token19
+        ) {
+        self.expect_token(TokenType::Token19)?;
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::Token20
+        ) {
+        self.expect_token(TokenType::Token20)?;
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::Token21
+        ) {
+        self.expect_token(TokenType::Token21)?;
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::Token22
+        ) {
+        self.expect_token(TokenType::Token22)?;
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::LIKE
+        ) {
+        self.expect_token(TokenType::LIKE)?;
+        {
+            let child = self.parse_string_litteral()?;
+            children.push(child);
+        }
+        if self.current_token.token_type == TokenType::ESCAPE
+        {
+        self.expect_token(TokenType::ESCAPE)?;
+        {
+            let child = self.parse_string_litteral()?;
+            children.push(child);
+        }
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::NOT
+        ) {
+        self.expect_token(TokenType::NOT)?;
+        self.expect_token(TokenType::LIKE)?;
+        {
+            let child = self.parse_string_litteral()?;
+            children.push(child);
+        }
+        if self.current_token.token_type == TokenType::ESCAPE
+        {
+        self.expect_token(TokenType::ESCAPE)?;
+        {
+            let child = self.parse_string_litteral()?;
+            children.push(child);
+        }
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::BETWEEN
+        ) {
+        self.expect_token(TokenType::BETWEEN)?;
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        self.expect_token(TokenType::AND)?;
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::NOT
+        ) {
+        self.expect_token(TokenType::NOT)?;
+        self.expect_token(TokenType::BETWEEN)?;
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        self.expect_token(TokenType::AND)?;
+        {
+            let child = self.parse_add_expression()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::IN
+        ) {
+        self.expect_token(TokenType::IN)?;
+        self.expect_token(TokenType::Token23)?;
+        {
+            let child = self.parse_string_litteral()?;
+            children.push(child);
+        }
+        while self.current_token.token_type == TokenType::Token24
+        {
+        self.expect_token(TokenType::Token24)?;
+        {
+            let child = self.parse_string_litteral()?;
+            children.push(child);
+        }
+        }
+        self.expect_token(TokenType::Token25)?;
+        }
+        else if (
+            self.current_token.token_type == TokenType::NOT
+        ) {
+        self.expect_token(TokenType::NOT)?;
+        self.expect_token(TokenType::IN)?;
+        self.expect_token(TokenType::Token23)?;
+        {
+            let child = self.parse_string_litteral()?;
+            children.push(child);
+        }
+        while self.current_token.token_type == TokenType::Token24
+        {
+        self.expect_token(TokenType::Token24)?;
+        {
+            let child = self.parse_string_litteral()?;
+            children.push(child);
+        }
+        }
+        self.expect_token(TokenType::Token25)?;
+        }
+        else {
+            break;
+        }
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = ComparisonExpressionNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
         let node_id = self.arena.alloc_node(AstNode::ComparisonExpression(node));
+        for child_id in children {
+            self.set_parent(child_id, node_id);
+        }
         Ok(node_id)
     }
 
-    /// Parse: addExpression
+    /// Parse: addExpression -> multExpr ((ops) multExpr)*
     fn parse_add_expression(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children = Vec::new();
+        let mut operators = Vec::new();
+
+        let first = self.parse_mult_expr()?;
+        children.push(first);
+
+        while self.current_token.token_type == TokenType::Token26
+            || self.current_token.token_type == TokenType::Token27
+        {
+            let op = match self.current_token.token_type {
+                TokenType::Token26 => AddOp::Token26,
+                TokenType::Token27 => AddOp::Token27,
+                _ => unreachable!(),
+            };
+            operators.push(op);
+
+            self.consume_token()?;
+            let child = self.parse_mult_expr()?;
+            children.push(child);
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = AddExpressionNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
+        node.operators = operators;
+
         let node_id = self.arena.alloc_node(AstNode::AddExpression(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
         Ok(node_id)
     }
 
-    /// Parse: multExpr
+    /// Parse: multExpr -> unaryExpr ((ops) unaryExpr)*
     fn parse_mult_expr(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children = Vec::new();
+        let mut operators = Vec::new();
+
+        let first = self.parse_unary_expr()?;
+        children.push(first);
+
+        while self.current_token.token_type == TokenType::Token28
+            || self.current_token.token_type == TokenType::Token29
+            || self.current_token.token_type == TokenType::Token30
+        {
+            let op = match self.current_token.token_type {
+                TokenType::Token28 => MultExprOp::Token28,
+                TokenType::Token29 => MultExprOp::Token29,
+                TokenType::Token30 => MultExprOp::Token30,
+                _ => unreachable!(),
+            };
+            operators.push(op);
+
+            self.consume_token()?;
+            let child = self.parse_unary_expr()?;
+            children.push(child);
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = MultExprNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
+        node.operators = operators;
+
         let node_id = self.arena.alloc_node(AstNode::MultExpr(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
         Ok(node_id)
     }
 
-    /// Parse: unaryExpr
+    /// Parse: unaryExpr (generic)
     fn parse_unary_expr(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children: Vec<NodeId> = Vec::new();
+
+        if (
+            self.current_token.token_type == TokenType::Token26
+        ) {
+        self.expect_token(TokenType::Token26)?;
+        {
+            let child = self.parse_unary_expr()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::Token27
+        ) {
+        self.expect_token(TokenType::Token27)?;
+        {
+            let child = self.parse_unary_expr()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::NOT
+        ) {
+        self.expect_token(TokenType::NOT)?;
+        {
+            let child = self.parse_unary_expr()?;
+            children.push(child);
+        }
+        }
+        else if (
+            self.current_token.token_type == TokenType::TRUE
+            || 
+            self.current_token.token_type == TokenType::FALSE
+            || 
+            self.current_token.token_type == TokenType::NULL
+            || 
+            self.current_token.token_type == TokenType::Token23
+            || 
+            self.current_token.token_type == TokenType::DECIMAL_LITERAL
+            || 
+            self.current_token.token_type == TokenType::HEX_LITERAL
+            || 
+            self.current_token.token_type == TokenType::OCTAL_LITERAL
+            || 
+            self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL
+            || 
+            self.current_token.token_type == TokenType::STRING_LITERAL
+            || 
+            self.current_token.token_type == TokenType::ID
+        ) {
+        {
+            let child = self.parse_primary_expr()?;
+            children.push(child);
+        }
+        }
+        else {
+            return Err(ParseError::at_position(
+                format!(
+                    "Expected expression, found {:?} '{}'",
+                    self.current_token.token_type, self.current_token.image
+                ),
+                self.current_token.begin_offset,
+            ));
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = UnaryExprNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
         let node_id = self.arena.alloc_node(AstNode::UnaryExpr(node));
+        for child_id in children {
+            self.set_parent(child_id, node_id);
+        }
         Ok(node_id)
     }
 
     /// Parse: primaryExpr
     fn parse_primary_expr(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children = Vec::new();
+
+        if (
+            self.current_token.token_type == TokenType::TRUE
+            || 
+            self.current_token.token_type == TokenType::FALSE
+            || 
+            self.current_token.token_type == TokenType::NULL
+            || 
+            self.current_token.token_type == TokenType::DECIMAL_LITERAL
+            || 
+            self.current_token.token_type == TokenType::HEX_LITERAL
+            || 
+            self.current_token.token_type == TokenType::OCTAL_LITERAL
+            || 
+            self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL
+            || 
+            self.current_token.token_type == TokenType::STRING_LITERAL
+        ) {
+            let inner = self.parse_literal()?;
+            children.push(inner);
+        }
+        else if (
+            self.current_token.token_type == TokenType::ID
+        ) {
+            let inner = self.parse_variable()?;
+            children.push(inner);
+        }
+        else if self.current_token.token_type == TokenType::Token23 {
+            self.consume_token()?;
+            let inner = self.parse_or_expression()?;
+            children.push(inner);
+            self.expect_token(TokenType::Token25)?;
+        }
+        else {
+            return Err(ParseError::at_position(
+                format!(
+                    "Expected expression, found {:?} '{}'",
+                    self.current_token.token_type, self.current_token.image
+                ),
+                self.current_token.begin_offset,
+            ));
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = PrimaryExprNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
+
         let node_id = self.arena.alloc_node(AstNode::PrimaryExpr(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
         Ok(node_id)
     }
 
     /// Parse: literal
     fn parse_literal(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children = Vec::new();
+
+        if (
+            self.current_token.token_type == TokenType::STRING_LITERAL
+        ) {
+            let inner = self.parse_string_litteral()?;
+            children.push(inner);
+        }
+        else if self.current_token.token_type == TokenType::DECIMAL_LITERAL {
+            self.consume_token()?;
+        }
+        else if self.current_token.token_type == TokenType::HEX_LITERAL {
+            self.consume_token()?;
+        }
+        else if self.current_token.token_type == TokenType::OCTAL_LITERAL {
+            self.consume_token()?;
+        }
+        else if self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL {
+            self.consume_token()?;
+        }
+        else if self.current_token.token_type == TokenType::TRUE {
+            self.consume_token()?;
+        }
+        else if self.current_token.token_type == TokenType::FALSE {
+            self.consume_token()?;
+        }
+        else if self.current_token.token_type == TokenType::NULL {
+            self.consume_token()?;
+        }
+        else {
+            return Err(ParseError::at_position(
+                format!(
+                    "Expected expression, found {:?} '{}'",
+                    self.current_token.token_type, self.current_token.image
+                ),
+                self.current_token.begin_offset,
+            ));
+        }
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = LiteralNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
+
         let node_id = self.arena.alloc_node(AstNode::Literal(node));
+        for child in children {
+            self.set_parent(child, node_id);
+        }
         Ok(node_id)
     }
 
-    /// Parse: stringLitteral
+    /// Parse: stringLitteral (generic)
     fn parse_string_litteral(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children: Vec<NodeId> = Vec::new();
+
+        self.expect_token(TokenType::STRING_LITERAL)?;
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = StringLitteralNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
         let node_id = self.arena.alloc_node(AstNode::StringLitteral(node));
+        for child_id in children {
+            self.set_parent(child_id, node_id);
+        }
         Ok(node_id)
     }
 
-    /// Parse: variable
+    /// Parse: variable (generic)
     fn parse_variable(&mut self) -> ParseResult<NodeId> {
         let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
+        let mut children: Vec<NodeId> = Vec::new();
+
+        self.expect_token(TokenType::ID)?;
+
         let end_token = self.current_token_id.unwrap_or(begin_token);
         let mut node = VariableNode::new(begin_token, end_token);
-        node.children = children;
+        node.children = children.clone();
         let node_id = self.arena.alloc_node(AstNode::Variable(node));
+        for child_id in children {
+            self.set_parent(child_id, node_id);
+        }
         Ok(node_id)
     }
 
@@ -277,5 +731,15 @@ impl Parser {
         }
 
         Ok(&self.lookahead[n - 1])
+    }
+
+    /// Peek at the type of the token at lookahead position n (0 = current) without error.
+    /// Returns None if we can't read that far ahead.
+    #[allow(dead_code)]
+    fn lookahead_type(&mut self, n: usize) -> Option<TokenType> {
+        if n == 0 {
+            return Some(self.current_token.token_type);
+        }
+        self.lookahead(n).ok().map(|t| t.token_type)
     }
 }

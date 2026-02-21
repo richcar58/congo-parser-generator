@@ -96,17 +96,7 @@ impl Parser {
 [#elseif info.pattern == "optional_suffix"]
 [@GenerateOptionalSuffixMethod production, info, snakeName /]
 [#else]
-    /// Parse: ${production.name}
-    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
-        let begin_token = self.alloc_current_token();
-        let children: Vec<NodeId> = Vec::new();
-        let end_token = self.current_token_id.unwrap_or(begin_token);
-        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
-        node.children = children;
-        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
-        Ok(node_id)
-    }
-
+[@GenerateGenericMethod production, snakeName /]
 [/#if]
 [/#list]
     // ========== Helper Methods ==========
@@ -175,6 +165,16 @@ impl Parser {
         }
 
         Ok(&self.lookahead[n - 1])
+    }
+
+    /// Peek at the type of the token at lookahead position n (0 = current) without error.
+    /// Returns None if we can't read that far ahead.
+    #[allow(dead_code)]
+    fn lookahead_type(&mut self, n: usize) -> Option<TokenType> {
+        if n == 0 {
+            return Some(self.current_token.token_type);
+        }
+        self.lookahead(n).ok().map(|t| t.token_type)
     }
 }
 [#-- ====================================================================== --]
@@ -323,12 +323,22 @@ impl Parser {
         ${(alt_index == 0)?string("if", "else if")} self.current_token.token_type == TokenType::${alt.tokenName} {
             self.consume_token()?;
         }
+[#elseif alt.type == "nonterminal"]
+        ${(alt_index == 0)?string("if", "else if")} (
+    [#list globals::getRustFirstSetTokenNames(info.resolvedExpansion.choices[alt_index]) as name]
+            self.current_token.token_type == TokenType::${name}[#if name_has_next]
+            || [/#if]
+    [/#list]
+        ) {
+            let inner = self.parse_${globals::translateIdentifier(alt.productionName)}()?;
+            children.push(inner);
+        }
 [#elseif alt.type == "parenthesized"]
-        ${(alt_index == 0)?string("if", "else if")} self.current_token.token_type == TokenType::LPAREN {
+        ${(alt_index == 0)?string("if", "else if")} self.current_token.token_type == TokenType::${alt.lparenToken!"LPAREN"} {
             self.consume_token()?;
             let inner = self.parse_${globals::translateIdentifier(alt.innerProdName)}()?;
             children.push(inner);
-            self.expect_token(TokenType::RPAREN)?;
+            self.expect_token(TokenType::${alt.rparenToken!"RPAREN"})?;
         }
 [#else]
         ${(alt_index == 0)?string("if", "else if")} false {
@@ -437,10 +447,182 @@ impl Parser {
         node.children = children.clone();
 
         let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
-        for child in children {
-            self.set_parent(child, node_id);
+        for child_id in children {
+            self.set_parent(child_id, node_id);
         }
         Ok(node_id)
     }
 
+[/#macro]
+[#-- ====================================================================== --]
+[#-- MACRO: Generic tree-walking parser (recursive expansion dispatcher)    --]
+[#-- ====================================================================== --]
+[#macro GenerateGenericMethod production snakeName]
+    /// Parse: ${production.name} (generic)
+    fn parse_${snakeName}(&mut self) -> ParseResult<NodeId> {
+        let begin_token = self.alloc_current_token();
+        let mut children: Vec<NodeId> = Vec::new();
+
+        [@BuildExpansionCode production.expansion /]
+
+        let end_token = self.current_token_id.unwrap_or(begin_token);
+        let mut node = ${production.name?cap_first}Node::new(begin_token, end_token);
+        node.children = children.clone();
+        let node_id = self.arena.alloc_node(AstNode::${production.name?cap_first}(node));
+        for child_id in children {
+            self.set_parent(child_id, node_id);
+        }
+        Ok(node_id)
+    }
+
+[/#macro]
+[#-- Recursive expansion code dispatcher --]
+[#macro BuildExpansionCode expansion]
+[#var className = expansion.simpleName]
+[#if className = "CodeBlock" || className = "RawCode"
+    || className = "Assertion" || className = "Failure"
+    || className = "UncacheTokens"]
+[#-- Skip non-syntactic expansions --]
+[#elseif className = "ExpansionWithParentheses"]
+[@BuildExpansionCode expansion.nestedExpansion /]
+[#elseif className = "ExpansionSequence"]
+[@BuildSequenceCode expansion /]
+[#elseif className = "ExpansionChoice"]
+[@BuildChoiceCode expansion /]
+[#elseif className = "Terminal"]
+[@BuildTerminalCode expansion /]
+[#elseif className = "NonTerminal"]
+[@BuildNonTerminalCode expansion /]
+[#elseif className = "ZeroOrMore"]
+[@BuildZeroOrMoreCode expansion /]
+[#elseif className = "ZeroOrOne"]
+[@BuildZeroOrOneCode expansion /]
+[#elseif className = "OneOrMore"]
+[@BuildOneOrMoreCode expansion /]
+[/#if]
+[/#macro]
+[#-- Build a sequence: iterate syntactic units --]
+[#macro BuildSequenceCode expansion]
+[#list expansion.units as unit]
+[#if unit.maximumSize > 0]
+[@BuildExpansionCode unit /]
+[/#if]
+[/#list]
+[/#macro]
+[#-- Build a terminal: consume a specific token --]
+[#macro BuildTerminalCode terminal]
+[#var tokenName = terminal.label]
+[#if tokenName?starts_with("_TOKEN_")]
+[#set tokenName = tokenName?replace("_TOKEN_", "Token")]
+[/#if]
+        self.expect_token(TokenType::${tokenName})?;
+[/#macro]
+[#-- Build a nonterminal: call child parser and capture result --]
+[#macro BuildNonTerminalCode nonterminal]
+        {
+            let child = self.parse_${globals::translateIdentifier(nonterminal.name)}()?;
+            children.push(child);
+        }
+[/#macro]
+[#-- Build a choice: if/else if chain with first-set lookahead --]
+[#macro BuildChoiceCode choice]
+[#list choice.choices as expansion]
+[#if expansion.enteredUnconditionally]
+        else {
+[@BuildExpansionCode expansion /]
+        }
+[#return]
+[/#if]
+[#var firstTokens = globals::getRustFirstSetTokenNames(expansion)]
+[#if firstTokens?size > 0]
+        ${(expansion_index == 0)?string("if", "else if")} (
+[#if expansion.requiresPredicateMethod]
+[#-- Multi-token lookahead needed (SCAN directive) --]
+[#var laTokens = globals::getRustLookaheadTokens(expansion)]
+[#list laTokens as tok]
+[#if tok_index == 0]
+            self.current_token.token_type == TokenType::${tok}
+[#else]
+            && self.lookahead_type(${tok_index}) == Some(TokenType::${tok})
+[/#if]
+[/#list]
+[#else]
+[#-- Simple single-token lookahead --]
+[#list firstTokens as name]
+            self.current_token.token_type == TokenType::${name}[#if name_has_next]
+            || [/#if]
+[/#list]
+[/#if]
+        ) {
+[@BuildExpansionCode expansion /]
+        }
+[/#if]
+[/#list]
+[#-- Final else clause depends on context --]
+[#if choice.parent.simpleName == "ZeroOrMore" || choice.parent.simpleName == "OneOrMore"]
+        else {
+            break;
+        }
+[#else]
+        else {
+            return Err(ParseError::at_position(
+                format!(
+                    "Expected expression, found {:?} '{}'",
+                    self.current_token.token_type, self.current_token.image
+                ),
+                self.current_token.begin_offset,
+            ));
+        }
+[/#if]
+[/#macro]
+[#-- Build zero-or-more: while loop --]
+[#macro BuildZeroOrMoreCode zom]
+[#var nestedExp = zom.nestedExpansion]
+[#if nestedExp.simpleName == "ExpansionChoice"]
+[#-- If nested is a choice, let the choice handle break --]
+        loop {
+[@BuildExpansionCode nestedExp /]
+        }
+[#else]
+[#var firstTokens = globals::getRustFirstSetTokenNames(nestedExp)]
+        while [#list firstTokens as name]self.current_token.token_type == TokenType::${name}[#if name_has_next]
+            || [/#if][/#list]
+        {
+[@BuildExpansionCode nestedExp /]
+        }
+[/#if]
+[/#macro]
+[#-- Build zero-or-one: if block --]
+[#macro BuildZeroOrOneCode zoo]
+[#var nestedExp = zoo.nestedExpansion]
+[#if nestedExp.simpleName == "ExpansionChoice"]
+[@BuildExpansionCode nestedExp /]
+[#else]
+[#var firstTokens = globals::getRustFirstSetTokenNames(nestedExp)]
+        if [#list firstTokens as name]self.current_token.token_type == TokenType::${name}[#if name_has_next]
+            || [/#if][/#list]
+        {
+[@BuildExpansionCode nestedExp /]
+        }
+[/#if]
+[/#macro]
+[#-- Build one-or-more: loop at least once --]
+[#macro BuildOneOrMoreCode oom]
+[#var nestedExp = oom.nestedExpansion]
+[#if nestedExp.simpleName == "ExpansionChoice"]
+[#-- First iteration mandatory, rest controlled by choice break --]
+        loop {
+[@BuildExpansionCode nestedExp /]
+        }
+[#else]
+[#var firstTokens = globals::getRustFirstSetTokenNames(nestedExp)]
+        loop {
+[@BuildExpansionCode nestedExp /]
+            if !([#list firstTokens as name]self.current_token.token_type == TokenType::${name}[#if name_has_next]
+                || [/#if][/#list])
+            {
+                break;
+            }
+        }
+[/#if]
 [/#macro]

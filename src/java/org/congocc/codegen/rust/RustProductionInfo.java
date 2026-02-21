@@ -55,6 +55,7 @@ public class RustProductionInfo {
 
     // For CHOICE pattern: various terminal alternatives
     private final List<Map<String, Object>> choiceAlternatives = new ArrayList<>();
+    private Expansion resolvedExpansion; // The expansion after resolveEffective()
 
     // For OPTIONAL_SUFFIX pattern: X : Y (suffix)?
     private String suffixChildName;
@@ -94,6 +95,7 @@ public class RustProductionInfo {
 
     // Choice
     public List<Map<String, Object>> getChoiceAlternatives() { return choiceAlternatives; }
+    public Expansion getResolvedExpansion() { return resolvedExpansion; }
 
     // Optional suffix
     public String getSuffixChildName() { return suffixChildName; }
@@ -111,9 +113,10 @@ public class RustProductionInfo {
             return info;
         }
 
-        // Analyze expansion tree structure
+        // Pre-process: strip CodeBlocks and unwrap wrappers
+        exp = resolveEffective(exp);
+        info.resolvedExpansion = exp;
 
-        // The expansion of a BNFProduction is typically an ExpansionSequence or ExpansionChoice
         String cls = exp.getSimpleName();
 
         if ("ExpansionSequence".equals(cls)) {
@@ -130,7 +133,7 @@ public class RustProductionInfo {
     // ===== Pattern detection for sequences =====
 
     private static void analyzeSequence(RustProductionInfo info, BNFProduction production, ExpansionSequence seq) {
-        List<Expansion> units = seq.getUnits();
+        List<Expansion> units = filterSyntactic(seq.getUnits());
         if (units.size() == 2) {
             Expansion first = units.get(0);
             Expansion second = units.get(1);
@@ -145,38 +148,82 @@ public class RustProductionInfo {
             // INFIX or SEPARATOR: NonTerminal (... NonTerminal)*
             if (isNonTerminal(first) && isZeroOrMore(second)) {
                 Expansion inner = getNestedExpansion(second);
-                if (inner != null && "ExpansionSequence".equals(inner.getSimpleName())) {
-                    List<Expansion> innerUnits = ((ExpansionSequence) inner).getUnits();
-                    if (innerUnits.size() >= 2) {
-                        Expansion opPart = unwrapParens(innerUnits.get(0));
-                        Expansion childPart = innerUnits.get(innerUnits.size() - 1);
+                if (inner != null) {
+                    // Resolve inner to handle SCAN wrappers, parens, CodeBlocks
+                    inner = resolveEffective(inner);
 
-                        if (isNonTerminal(childPart)) {
-                            // Check if opPart is a choice of terminals (INFIX)
-                            if ("ExpansionChoice".equals(opPart.getSimpleName())) {
-                                List<String[]> terminalLabels = extractTerminalLabelsFromChoice((ExpansionChoice) opPart);
-                                if (terminalLabels != null && terminalLabels.size() >= 2) {
-                                    info.patternType = PatternType.INFIX;
-                                    info.infixChildName = getNonTerminalName(first);
-                                    info.operatorEnumName = generateEnumName(production.getName());
-                                    for (String[] labelInfo : terminalLabels) {
-                                        Map<String, String> variant = new LinkedHashMap<>();
-                                        variant.put("variantName", tokenNameToVariant(labelInfo[0]));
-                                        variant.put("tokenName", labelInfo[0]);
-                                        variant.put("display", labelInfo[1]);
-                                        info.operatorVariants.add(variant);
+                    if ("ExpansionSequence".equals(inner.getSimpleName())) {
+                        List<Expansion> innerUnits = filterSyntactic(((ExpansionSequence) inner).getUnits());
+                        if (innerUnits.size() >= 2) {
+                            Expansion opPart = unwrapParens(innerUnits.get(0));
+                            Expansion childPart = innerUnits.get(innerUnits.size() - 1);
+
+                            if (isNonTerminal(childPart)) {
+                                // Check if opPart is a choice of terminals (INFIX)
+                                if ("ExpansionChoice".equals(opPart.getSimpleName())) {
+                                    List<String[]> terminalLabels = extractTerminalLabelsFromChoice((ExpansionChoice) opPart);
+                                    if (terminalLabels != null && terminalLabels.size() >= 2) {
+                                        info.patternType = PatternType.INFIX;
+                                        info.infixChildName = getNonTerminalName(first);
+                                        info.operatorEnumName = generateEnumName(production.getName());
+                                        for (String[] labelInfo : terminalLabels) {
+                                            Map<String, String> variant = new LinkedHashMap<>();
+                                            variant.put("variantName", tokenNameToVariant(labelInfo[0]));
+                                            variant.put("tokenName", rustifyTokenName(labelInfo[0]));
+                                            variant.put("display", labelInfo[1]);
+                                            info.operatorVariants.add(variant);
+                                        }
+                                        return;
                                     }
+                                }
+
+                                // Check if opPart is a single terminal (SEPARATOR)
+                                if (isTerminal(opPart)) {
+                                    info.patternType = PatternType.SEPARATOR;
+                                    info.separatorChildName = getNonTerminalName(first);
+                                    info.separatorTokenName = rustifyTokenName(getTerminalLabel(opPart));
                                     return;
                                 }
                             }
+                        }
+                    }
 
-                            // Check if opPart is a single terminal (SEPARATOR)
-                            if (isTerminal(opPart)) {
-                                info.patternType = PatternType.SEPARATOR;
-                                info.separatorChildName = getNonTerminalName(first);
-                                info.separatorTokenName = getTerminalLabel(opPart);
-                                return;
+                    // INFIX from flattened choice: each alt is [terminal, child]
+                    if ("ExpansionChoice".equals(inner.getSimpleName())) {
+                        ExpansionChoice choice = (ExpansionChoice) inner;
+                        List<ExpansionSequence> alts = choice.getChoices();
+                        String childName = null;
+                        List<String[]> terminalLabels = new ArrayList<>();
+                        boolean isInfix = true;
+
+                        for (ExpansionSequence alt : alts) {
+                            List<Expansion> altUnits = filterSyntactic(alt.getUnits());
+                            if (altUnits.size() == 2 && isTerminal(altUnits.get(0)) && isNonTerminal(altUnits.get(1))) {
+                                Terminal t = (Terminal) altUnits.get(0);
+                                String ntName = getNonTerminalName(altUnits.get(1));
+                                if (childName == null) childName = ntName;
+                                if (!childName.equals(ntName)) { isInfix = false; break; }
+                                String display = t.getRegexp().getLiteralString();
+                                if (display == null) display = tokenNameToDisplay(t.getLabel());
+                                terminalLabels.add(new String[]{t.getLabel(), display});
+                            } else {
+                                isInfix = false;
+                                break;
                             }
+                        }
+
+                        if (isInfix && terminalLabels.size() >= 2) {
+                            info.patternType = PatternType.INFIX;
+                            info.infixChildName = getNonTerminalName(first);
+                            info.operatorEnumName = generateEnumName(production.getName());
+                            for (String[] labelInfo : terminalLabels) {
+                                Map<String, String> variant = new LinkedHashMap<>();
+                                variant.put("variantName", tokenNameToVariant(labelInfo[0]));
+                                variant.put("tokenName", rustifyTokenName(labelInfo[0]));
+                                variant.put("display", labelInfo[1]);
+                                info.operatorVariants.add(variant);
+                            }
+                            return;
                         }
                     }
                 }
@@ -203,15 +250,15 @@ public class RustProductionInfo {
         if (choices.size() == 2) {
             ExpansionSequence firstAlt = choices.get(0);
             ExpansionSequence secondAlt = choices.get(1);
-            List<Expansion> firstUnits = firstAlt.getUnits();
-            List<Expansion> secondUnits = secondAlt.getUnits();
+            List<Expansion> firstUnits = filterSyntactic(firstAlt.getUnits());
+            List<Expansion> secondUnits = filterSyntactic(secondAlt.getUnits());
 
             if (firstUnits.size() == 2 && isTerminal(firstUnits.get(0)) && isNonTerminal(firstUnits.get(1))) {
                 String ntName = getNonTerminalName(firstUnits.get(1));
                 if (ntName.equals(production.getName())) {
                     // This IS a prefix pattern: <TOKEN> Self | Other
                     info.patternType = PatternType.PREFIX;
-                    info.prefixTokenName = getTerminalLabel(firstUnits.get(0));
+                    info.prefixTokenName = rustifyTokenName(getTerminalLabel(firstUnits.get(0)));
                     info.prefixSelfName = ntName;
 
                     // Determine the boolean field name based on the prefix token
@@ -231,25 +278,42 @@ public class RustProductionInfo {
             }
         }
 
-        // CHOICE: multiple alternatives (terminals, sequences starting with terminals)
+        // CHOICE: multiple alternatives (terminals, nonterminals, sequences starting with terminals)
         info.patternType = PatternType.CHOICE;
         for (ExpansionSequence alt : choices) {
             Map<String, Object> altInfo = new LinkedHashMap<>();
-            List<Expansion> altUnits = alt.getUnits();
+            List<Expansion> altUnits = filterSyntactic(alt.getUnits());
+
+            // Resolve single-element wrappers (e.g., parens around nonterminal + code block)
+            if (altUnits.size() == 1) {
+                Expansion resolved = resolveEffective(altUnits.get(0));
+                if ("ExpansionSequence".equals(resolved.getSimpleName())) {
+                    altUnits = filterSyntactic(((ExpansionSequence) resolved).getUnits());
+                } else {
+                    altUnits = new ArrayList<>();
+                    altUnits.add(resolved);
+                }
+            }
 
             if (altUnits.size() == 1 && isTerminal(altUnits.get(0))) {
                 // Single terminal alternative
                 altInfo.put("type", "terminal");
-                altInfo.put("tokenName", getTerminalLabel(altUnits.get(0)));
+                altInfo.put("tokenName", rustifyTokenName(getTerminalLabel(altUnits.get(0))));
+            } else if (altUnits.size() == 1 && isNonTerminal(altUnits.get(0))) {
+                // Single nonterminal alternative
+                altInfo.put("type", "nonterminal");
+                altInfo.put("productionName", getNonTerminalName(altUnits.get(0)));
             } else if (altUnits.size() >= 3 && isTerminal(altUnits.get(0)) && isTerminal(altUnits.get(altUnits.size() - 1))) {
                 // Parenthesized expression: "(" NonTerminal ")"
-                String firstToken = getTerminalLabel(altUnits.get(0));
-                String lastToken = getTerminalLabel(altUnits.get(altUnits.size() - 1));
-                if ("LPAREN".equals(firstToken) && "RPAREN".equals(lastToken) && altUnits.size() == 3) {
+                String firstLiteral = getTerminalLiteral(altUnits.get(0));
+                String lastLiteral = getTerminalLiteral(altUnits.get(altUnits.size() - 1));
+                if ("(".equals(firstLiteral) && ")".equals(lastLiteral) && altUnits.size() == 3) {
                     Expansion middle = altUnits.get(1);
                     if (isNonTerminal(middle)) {
                         altInfo.put("type", "parenthesized");
                         altInfo.put("innerProdName", getNonTerminalName(middle));
+                        altInfo.put("lparenToken", rustifyTokenName(getTerminalLabel(altUnits.get(0))));
+                        altInfo.put("rparenToken", rustifyTokenName(getTerminalLabel(altUnits.get(2))));
                     } else {
                         altInfo.put("type", "sequence");
                     }
@@ -260,6 +324,15 @@ public class RustProductionInfo {
                 altInfo.put("type", "sequence");
             }
             info.choiceAlternatives.add(altInfo);
+        }
+
+        // If any alternative is unhandled ("sequence"), fall back to GENERIC
+        for (Map<String, Object> altInfo : info.choiceAlternatives) {
+            if ("sequence".equals(altInfo.get("type"))) {
+                info.patternType = PatternType.GENERIC;
+                info.choiceAlternatives.clear();
+                return;
+            }
         }
     }
 
@@ -286,7 +359,7 @@ public class RustProductionInfo {
         List<Map<String, Object>> allAlts = new ArrayList<>();
 
         for (ExpansionSequence alt : alts) {
-            List<Expansion> units = alt.getUnits();
+            List<Expansion> units = filterSyntactic(alt.getUnits());
             if (units.isEmpty()) {
                 canGenerateEnum = false;
                 break;
@@ -304,10 +377,10 @@ public class RustProductionInfo {
                     for (String[] tl : termLabels) {
                         Map<String, String> v = new LinkedHashMap<>();
                         v.put("variantName", tokenNameToVariant(tl[0]));
-                        v.put("tokenName", tl[0]);
+                        v.put("tokenName", rustifyTokenName(tl[0]));
                         v.put("display", tl[1]);
                         allVariants.add(v);
-                        tokenNames.add(tl[0]);
+                        tokenNames.add(rustifyTokenName(tl[0]));
                     }
                     altInfo.put("tokenNames", tokenNames);
 
@@ -320,7 +393,7 @@ public class RustProductionInfo {
                     break;
                 }
             } else if (isTerminal(first)) {
-                String tokenName = getTerminalLabel(first);
+                String tokenName = rustifyTokenName(getTerminalLabel(first));
                 altInfo.put("type", "keyword");
                 altInfo.put("leadingToken", tokenName);
 
@@ -340,7 +413,7 @@ public class RustProductionInfo {
                 } else {
                     Map<String, String> v = new LinkedHashMap<>();
                     v.put("variantName", tokenNameToVariant(tokenName));
-                    v.put("tokenName", tokenName);
+                    v.put("tokenName", rustifyTokenName(tokenName));
                     v.put("display", tokenName);
                     allVariants.add(v);
                 }
@@ -353,7 +426,7 @@ public class RustProductionInfo {
                         Map<String, String> unitInfo = new LinkedHashMap<>();
                         if (isTerminal(unit)) {
                             unitInfo.put("type", "terminal");
-                            unitInfo.put("tokenName", getTerminalLabel(unit));
+                            unitInfo.put("tokenName", rustifyTokenName(getTerminalLabel(unit)));
                         } else if (isNonTerminal(unit)) {
                             unitInfo.put("type", "nonterminal");
                             unitInfo.put("name", getNonTerminalName(unit));
@@ -361,7 +434,7 @@ public class RustProductionInfo {
                             unitInfo.put("type", "optional");
                             Expansion optNested = getNestedExpansion(unit);
                             if (optNested != null && isTerminal(unwrapParens(optNested))) {
-                                unitInfo.put("optionalTokenName", getTerminalLabel(unwrapParens(optNested)));
+                                unitInfo.put("optionalTokenName", rustifyTokenName(getTerminalLabel(unwrapParens(optNested))));
                             }
                         } else {
                             unitInfo.put("type", "other");
@@ -383,6 +456,37 @@ public class RustProductionInfo {
             info.suffixVariants.addAll(allVariants);
             info.suffixAlternatives.addAll(allAlts);
         }
+    }
+
+    // ===== Filtering helpers =====
+
+    /**
+     * Filter a list of expansions to only those that consume tokens.
+     * Removes CodeBlock, RawCode, Assertion, Failure, UncacheTokens, etc.
+     */
+    private static List<Expansion> filterSyntactic(List<Expansion> units) {
+        List<Expansion> result = new ArrayList<>();
+        for (Expansion unit : units) {
+            if (unit.getMaximumSize() > 0) {
+                result.add(unit);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Resolve the effective expansion by filtering non-syntactic elements
+     * and unwrapping single-element wrappers.
+     */
+    private static Expansion resolveEffective(Expansion exp) {
+        exp = unwrapParens(exp);
+        if ("ExpansionSequence".equals(exp.getSimpleName())) {
+            List<Expansion> syntactic = filterSyntactic(((ExpansionSequence) exp).getUnits());
+            if (syntactic.size() == 1) {
+                return resolveEffective(syntactic.get(0));
+            }
+        }
+        return exp;
     }
 
     // ===== Helper methods =====
@@ -415,6 +519,12 @@ public class RustProductionInfo {
     private static String getTerminalLabel(Expansion exp) {
         Terminal t = (Terminal) exp;
         return t.getLabel();
+    }
+
+    private static String getTerminalLiteral(Expansion exp) {
+        Terminal t = (Terminal) exp;
+        String literal = t.getRegexp().getLiteralString();
+        return literal != null ? literal : t.getLabel();
     }
 
     private static Expansion getNestedExpansion(Expansion exp) {
@@ -464,6 +574,16 @@ public class RustProductionInfo {
     /**
      * Convert a token name to its display string (the actual character(s) it represents).
      */
+    /**
+     * Convert _TOKEN_N to TokenN for Rust TokenType enum compatibility.
+     */
+    private static String rustifyTokenName(String name) {
+        if (name.startsWith("_TOKEN_")) {
+            return name.replace("_TOKEN_", "Token");
+        }
+        return name;
+    }
+
     private static String tokenNameToDisplay(String tokenName) {
         return switch (tokenName) {
             case "PLUS" -> "+";
@@ -489,10 +609,14 @@ public class RustProductionInfo {
      *       "MultiplicativeExpression" -> "MultiplicativeOp"
      */
     private static String generateEnumName(String productionName) {
+        String result;
         if (productionName.endsWith("Expression")) {
-            return productionName.substring(0, productionName.length() - "Expression".length()) + "Op";
+            result = productionName.substring(0, productionName.length() - "Expression".length()) + "Op";
+        } else {
+            result = productionName + "Op";
         }
-        return productionName + "Op";
+        // Ensure PascalCase for Rust enum naming convention
+        return Character.toUpperCase(result.charAt(0)) + result.substring(1);
     }
 
     /**

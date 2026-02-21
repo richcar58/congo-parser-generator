@@ -913,11 +913,12 @@ fn test_parse_empty_parens_should_fail() {
 }
 
 #[test]
-fn test_parse_double_operator_should_fail() {
+fn test_parse_double_operator_is_unary_plus() {
+    // "42 ++ 1" is valid: it parses as "42 + (+1)" since + is both binary and unary
     let mut parser = Parser::new("42 ++ 1".to_string()).unwrap();
     assert!(
-        parser.parse().is_err(),
-        "Double operator should fail"
+        parser.parse().is_ok(),
+        "42 ++ 1 should succeed (binary + followed by unary +)"
     );
 }
 
@@ -1215,12 +1216,14 @@ fn test_pretty_print_shows_input() {
 
 #[test]
 fn test_pretty_print_shows_node_type() {
+    // With a simple input "42", passthrough optimization skips single-child wrappers
+    // like JmsSelector. Check that a leaf node type is present instead.
     let mut parser = Parser::new("42".to_string()).unwrap();
     let root = parser.parse().unwrap();
     let output = parser.arena().pretty_print(root, 0, parser.input());
     assert!(
-        output.contains("JmsSelector"),
-        "Pretty print should contain JmsSelector node type, got: {}",
+        output.contains("Literal"),
+        "Pretty print should contain Literal node type, got: {}",
         output
     );
 }
@@ -1358,16 +1361,18 @@ fn test_visitor_receives_correct_node_id() {
     let mut parser = Parser::new("42".to_string()).unwrap();
     let root = parser.parse().unwrap();
 
-    let mut visited_id = None;
+    let mut first_visited_id = None;
     parser.arena().visit(
         root,
         &mut |id, _node, _arena, _depth, _opts| {
-            visited_id = Some(id);
+            if first_visited_id.is_none() {
+                first_visited_id = Some(id);
+            }
             VisitControl::Continue
         },
         None,
     );
-    assert_eq!(visited_id, Some(root), "Visitor should receive the root node ID");
+    assert_eq!(first_visited_id, Some(root), "Visitor should receive the root node ID first");
 }
 
 // ============================================================================

@@ -160,12 +160,12 @@ impl Lexer {
             self.advance();
         }
         let image = self.input[start_pos..self.position].to_string();
-        Ok(Some(Token::new(
+        return Ok(Some(Token::new(
             TokenType::INTEGER,
             image,
             start_pos,
             self.position,
-        )))
+        )));
     }
 
     /// Skip whitespace and ignored tokens
