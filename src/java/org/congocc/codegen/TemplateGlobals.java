@@ -496,8 +496,9 @@ public class TemplateGlobals {
         } else if ("ExpansionSequence".equals(cls)) {
             for (Expansion unit : ((ExpansionSequence) exp).getUnits()) {
                 if (unit.getMaximumSize() == 0) continue; // skip CodeBlocks etc.
+                int sizeBefore = result.size();
                 collectLeadingTerminals(unit, result);
-                if (unit.getMaximumSize() > 0) break; // stop after first syntactic unit
+                if (result.size() == sizeBefore) break; // stop at non-terminal
             }
         } else if ("ExpansionWithParentheses".equals(cls)) {
             Expansion nested = exp.getNestedExpansion();

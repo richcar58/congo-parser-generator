@@ -159,7 +159,8 @@ impl Parser {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();
 
-        if self.current_token.token_type == TokenType::INTEGER {
+        if self.current_token.token_type == TokenType::INTEGER
+        {
             self.consume_token()?;
         }
         else if self.current_token.token_type == TokenType::LPAREN {

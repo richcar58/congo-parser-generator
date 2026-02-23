@@ -318,29 +318,41 @@ impl Parser {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();
 
+[#var terminalEmitted = false]
+[#var isFirstBranch = true]
 [#list info.choiceAlternatives as alt]
 [#if alt.type == "terminal"]
-        ${(alt_index == 0)?string("if", "else if")} self.current_token.token_type == TokenType::${alt.tokenName} {
+[#if !terminalEmitted]
+[#-- Group all terminal alternatives into one branch --]
+        ${isFirstBranch?string("if", "else if")} [#list info.terminalTokenNames as name]self.current_token.token_type == TokenType::${name}[#if name_has_next]
+            || [/#if][/#list]
+        {
             self.consume_token()?;
         }
+[#set terminalEmitted = true]
+[#set isFirstBranch = false]
+[/#if]
 [#elseif alt.type == "nonterminal"]
-        ${(alt_index == 0)?string("if", "else if")} [#list globals::getRustFirstSetTokenNames(info.resolvedExpansion.choices[alt_index]) as name]self.current_token.token_type == TokenType::${name}[#if name_has_next]
+        ${isFirstBranch?string("if", "else if")} [#list globals::getRustFirstSetTokenNames(info.resolvedExpansion.choices[alt_index]) as name]self.current_token.token_type == TokenType::${name}[#if name_has_next]
             || [/#if][/#list]
         {
             let inner = self.parse_${globals::translateIdentifier(alt.productionName)}()?;
             children.push(inner);
         }
+[#set isFirstBranch = false]
 [#elseif alt.type == "parenthesized"]
-        ${(alt_index == 0)?string("if", "else if")} self.current_token.token_type == TokenType::${alt.lparenToken!"LPAREN"} {
+        ${isFirstBranch?string("if", "else if")} self.current_token.token_type == TokenType::${alt.lparenToken!"LPAREN"} {
             self.consume_token()?;
             let inner = self.parse_${globals::translateIdentifier(alt.innerProdName)}()?;
             children.push(inner);
             self.expect_token(TokenType::${alt.rparenToken!"RPAREN"})?;
         }
+[#set isFirstBranch = false]
 [#else]
-        ${(alt_index == 0)?string("if", "else if")} false {
+        ${isFirstBranch?string("if", "else if")} false {
             // Unrecognized alternative
         }
+[#set isFirstBranch = false]
 [/#if]
 [/#list]
         else {

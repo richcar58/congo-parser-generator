@@ -168,6 +168,7 @@ impl Parser {
         }
         else if 
             self.current_token.token_type == TokenType::IS
+            && self.lookahead_type(1) == Some(TokenType::NULL)
         {
         self.expect_token(TokenType::IS)?;
         self.expect_token(TokenType::NULL)?;
@@ -253,6 +254,7 @@ impl Parser {
         }
         else if 
             self.current_token.token_type == TokenType::NOT
+            && self.lookahead_type(1) == Some(TokenType::LIKE)
         {
         self.expect_token(TokenType::NOT)?;
         self.expect_token(TokenType::LIKE)?;
@@ -284,6 +286,7 @@ impl Parser {
         }
         else if 
             self.current_token.token_type == TokenType::NOT
+            && self.lookahead_type(1) == Some(TokenType::BETWEEN)
         {
         self.expect_token(TokenType::NOT)?;
         self.expect_token(TokenType::BETWEEN)?;
@@ -317,6 +320,8 @@ impl Parser {
         }
         else if 
             self.current_token.token_type == TokenType::NOT
+            && self.lookahead_type(1) == Some(TokenType::IN)
+            && self.lookahead_type(2) == Some(TokenType::Token23)
         {
         self.expect_token(TokenType::NOT)?;
         self.expect_token(TokenType::IN)?;
@@ -549,25 +554,14 @@ impl Parser {
             let inner = self.parse_string_litteral()?;
             children.push(inner);
         }
-        else if self.current_token.token_type == TokenType::DECIMAL_LITERAL {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::HEX_LITERAL {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::OCTAL_LITERAL {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::TRUE {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::FALSE {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::NULL {
+        else if self.current_token.token_type == TokenType::DECIMAL_LITERAL
+            || self.current_token.token_type == TokenType::HEX_LITERAL
+            || self.current_token.token_type == TokenType::OCTAL_LITERAL
+            || self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL
+            || self.current_token.token_type == TokenType::TRUE
+            || self.current_token.token_type == TokenType::FALSE
+            || self.current_token.token_type == TokenType::NULL
+        {
             self.consume_token()?;
         }
         else {

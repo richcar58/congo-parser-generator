@@ -363,26 +363,24 @@ impl Lexer {
         }
 [#if hasDecimal]
         // Check for decimal point followed by digits
-        if self.position < self.input.len() && self.current_char() == '.' {
-            if let Some(next_ch) = self.peek(1) {
-                if next_ch.is_ascii_digit() {
-                    self.advance(); // consume '.'
-                    while self.position < self.input.len() && self.current_char().is_ascii_digit() {
-                        self.advance();
-                    }
-                    let image = self.input[start_pos..self.position].to_string();
-                    return Ok(Some(Token::new(
-                        TokenType::${decimalLabel},
-                        image,
-                        start_pos,
-                        self.position,
-                    )));
-                }
+        if self.position < self.input.len() && self.current_char() == '.'
+            && self.peek(1).is_some_and(|ch| ch.is_ascii_digit())
+        {
+            self.advance(); // consume '.'
+            while self.position < self.input.len() && self.current_char().is_ascii_digit() {
+                self.advance();
             }
+            let image = self.input[start_pos..self.position].to_string();
+            return Ok(Some(Token::new(
+                TokenType::${decimalLabel},
+                image,
+                start_pos,
+                self.position,
+            )));
         }
 [/#if]
         let image = self.input[start_pos..self.position].to_string();
-        return Ok(Some(Token::new(
+        Ok(Some(Token::new(
 [#if hasInteger]
             TokenType::${integerLabel},
 [#else]
@@ -391,7 +389,7 @@ impl Lexer {
             image,
             start_pos,
             self.position,
-        )));
+        )))
     }
 
 [/#if]

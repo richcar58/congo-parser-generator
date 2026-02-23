@@ -96,6 +96,16 @@ public class RustProductionInfo {
     // Choice
     public List<Map<String, Object>> getChoiceAlternatives() { return choiceAlternatives; }
     public Expansion getResolvedExpansion() { return resolvedExpansion; }
+    /** Returns the token names of all terminal alternatives (for grouped emit). */
+    public List<String> getTerminalTokenNames() {
+        List<String> names = new ArrayList<>();
+        for (Map<String, Object> alt : choiceAlternatives) {
+            if ("terminal".equals(alt.get("type"))) {
+                names.add((String) alt.get("tokenName"));
+            }
+        }
+        return names;
+    }
 
     // Optional suffix
     public String getSuffixChildName() { return suffixChildName; }

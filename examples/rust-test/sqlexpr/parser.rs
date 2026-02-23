@@ -394,25 +394,14 @@ impl Parser {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();
 
-        if self.current_token.token_type == TokenType::INTEGER_LITERAL {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::DECIMAL_LITERAL {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::STRING_LITERAL {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::TRUE {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::FALSE {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::NULL {
-            self.consume_token()?;
-        }
-        else if self.current_token.token_type == TokenType::IDENTIFIER {
+        if self.current_token.token_type == TokenType::INTEGER_LITERAL
+            || self.current_token.token_type == TokenType::DECIMAL_LITERAL
+            || self.current_token.token_type == TokenType::STRING_LITERAL
+            || self.current_token.token_type == TokenType::TRUE
+            || self.current_token.token_type == TokenType::FALSE
+            || self.current_token.token_type == TokenType::NULL
+            || self.current_token.token_type == TokenType::IDENTIFIER
+        {
             self.consume_token()?;
         }
         else if self.current_token.token_type == TokenType::LPAREN {
