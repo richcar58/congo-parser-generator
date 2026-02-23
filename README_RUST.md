@@ -220,11 +220,11 @@ cd examples/rust-test/arithmetic
 cargo test
 
 # Regenerate from the grammar (preserves hand-written parser.rs)
-java -jar congocc.jar -lang rust SimpleArithmetic.ccc
+java -jar <path-to>/congocc.jar -lang rust SimpleArithmetic.ccc
 cargo test
 ```
 
-### SQL Expression Parser [(link)](examples/rust-test/sqlexpr/README.md)
+### Simple SQL Expression Parser [(link)](examples/rust-test/sqlexpr/README.md)
 
 A SQL filter expression parser supporting boolean operators (`AND`, `OR`, `NOT`), comparisons (`=`, `<>`, `!=`, `<`, `>`, `<=`, `>=`), `LIKE`, `IN`, `BETWEEN`, `IS NULL`/`IS NOT NULL`, arithmetic, and literals.
 
@@ -234,7 +234,21 @@ cd examples/rust-test/sqlexpr
 cargo test
 
 # Regenerate from the grammar (preserves hand-written parser.rs)
-java -jar congocc.jar -lang rust SqlExpr.ccc
+java -jar <path-to>/congocc.jar -lang rust SqlExpr.ccc
+cargo test
+```
+
+### SQL Expression Parser [(link)](examples/rust-test/sqlexpr2/README.md)
+
+A SQL filter expression parser supporting boolean operators (`AND`, `OR`, `NOT`), comparisons (`=`, `<>`, `<`, `>`, `<=`, `>=`), `LIKE`, `IN`, `BETWEEN`, `IS NULL`/`IS NOT NULL`, arithmetic, and literals.
+
+```bash
+# Run the existing tests (65 tests, including visitor tests)
+cd examples/rust-test/sqlexpr2
+cargo test
+
+# Regenerate from the grammar (preserves hand-written parser.rs)
+java -jar <path-to>/congocc.jar -lang rust SqlExprParser.ccc
 cargo test
 ```
 
