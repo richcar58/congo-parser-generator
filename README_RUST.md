@@ -240,7 +240,7 @@ cargo test
 
 ### SQL Expression Parser [(link)](examples/rust-test/sqlexpr2/README.md)
 
-A SQL filter expression parser supporting boolean operators (`AND`, `OR`, `NOT`), comparisons (`=`, `<>`, `<`, `>`, `<=`, `>=`), `LIKE`, `IN`, `BETWEEN`, `IS NULL`/`IS NOT NULL`, arithmetic, and literals.
+A SQL filter expression parser supporting boolean operators (`AND`, `OR`, `NOT`), comparisons (`=`, `<>`, `<`, `>`, `<=`, `>=`), `LIKE`, `IN`, `BETWEEN`, `IS NULL`/`IS NOT NULL`, arithmetic, and literals.  This implementation uses essentially the same language specification file (SqlExprParser.ccc) used to generate the Java version of this parser.  The Java parser is implemented in the [sqlexpr-congocc](https://github.com/richcar58/sqlexpr-congocc) repository. 
 
 ```bash
 # Run the existing tests (65 tests, including visitor tests)
