@@ -273,16 +273,15 @@ impl Lexer {
 [#--
   =====================================================================
   Phase 5: Identifier and keyword matching
-  If grammar has an IDENTIFIER token, generate identifier consumption
-  with keyword lookup for case-insensitive string literals.
+  Detect identifier token by inspecting the grammar's regexp structure:
+  the identifier is the first non-literal, non-private, non-skip regexp
+  whose first character set includes letters.
   =====================================================================
 --]
-[#var hasIdentifier = false]
+[#var identifierLabel = globals::getRustIdentifierLabel()]
+[#var hasIdentifier = identifierLabel != ""]
 [#var hasKeywords = false]
 [#list lexerData.regularExpressions as regexp]
-[#if !regexp.private && regexp.literalString?? == false && regexp.label == "IDENTIFIER"]
-[#set hasIdentifier = true]
-[/#if]
 [#if !regexp.private && regexp.class.simpleName == "RegexpStringLiteral" && regexp.ignoreCase]
 [#set hasKeywords = true]
 [/#if]
@@ -420,7 +419,7 @@ impl Lexer {
             "${regexp.literalString?upper_case}" => TokenType::${regexp.label?replace("_TOKEN_", "Token")},
 [/#if]
 [/#list]
-            _ => TokenType::IDENTIFIER,
+            _ => TokenType::${identifierLabel},
         };
 
         Ok(Some(Token::new(token_type, image, start_pos, self.position)))

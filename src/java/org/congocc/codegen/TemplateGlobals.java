@@ -483,6 +483,54 @@ public class TemplateGlobals {
      * generating inline multi-token lookahead conditions.
      * Returns Rust-formatted token names for each lookahead position.
      */
+    /**
+     * Returns the Rust token name of the identifier token in the grammar, or empty
+     * string if none found. An identifier token is a non-literal, non-private,
+     * non-skip/unparsed regexp whose first character set includes letters.
+     */
+    public String getRustIdentifierLabel() {
+        for (RegularExpression regexp : grammar.getLexerData().getRegularExpressions()) {
+            if (regexp.isPrivate()) continue;
+            if (regexp.getLiteralString() != null) continue;
+            TokenProduction tp = regexp.getTokenProduction();
+            if (tp != null) {
+                TokenProduction.Kind kind = tp.getKind();
+                if (kind == TokenProduction.Kind.SKIPPED || kind == TokenProduction.Kind.UNPARSED) continue;
+            }
+            if (firstCharSetIncludesLetters(regexp)) {
+                return rustTokenName(regexp.getLabel());
+            }
+        }
+        return "";
+    }
+
+    private boolean firstCharSetIncludesLetters(RegularExpression regexp) {
+        if (regexp instanceof RegexpSequence seq) {
+            List<RegularExpression> units = seq.getUnits();
+            if (!units.isEmpty()) {
+                return firstCharSetIncludesLetters(units.get(0));
+            }
+        } else if (regexp instanceof CharacterList cl) {
+            for (CharacterRange range : cl.getDescriptors()) {
+                if (rangeIncludesLetters(range.getLeft(), range.getRight())) {
+                    return true;
+                }
+            }
+        } else if (regexp instanceof RegexpChoice choice) {
+            for (RegularExpression alt : choice.getChoices()) {
+                if (firstCharSetIncludesLetters(alt)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean rangeIncludesLetters(int left, int right) {
+        // Check overlap with a-z or A-Z
+        return (left <= 'z' && right >= 'a') || (left <= 'Z' && right >= 'A');
+    }
+
     public List<String> getRustLookaheadTokens(Expansion exp) {
         List<String> result = new ArrayList<>();
         collectLeadingTerminals(exp, result);

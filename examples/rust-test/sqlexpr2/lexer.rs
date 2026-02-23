@@ -245,9 +245,9 @@ impl Lexer {
             return self.match_number(start_pos);
         }
 
-        // Keywords (case-insensitive matching)
+        // Identifiers and keywords
         if ch.is_ascii_alphabetic() || ch == '_' {
-            return self.match_keyword(start_pos);
+            return self.match_identifier_or_keyword(start_pos);
         }
 
         // No token matched
@@ -318,9 +318,9 @@ impl Lexer {
         )))
     }
 
-    /// Match a keyword
-    fn match_keyword(&mut self, start_pos: usize) -> ParseResult<Option<Token>> {
-        // Consume alphabetic/underscore characters
+    /// Match an identifier or keyword
+    fn match_identifier_or_keyword(&mut self, start_pos: usize) -> ParseResult<Option<Token>> {
+        // Consume identifier characters
         while self.position < self.input.len() {
             let ch = self.current_char();
             if ch.is_ascii_alphanumeric() || ch == '_' {
@@ -333,42 +333,22 @@ impl Lexer {
         let upper = image.to_ascii_uppercase();
 
         // Check against keywords (case-insensitive)
-        match upper.as_str() {
-            "NOT" => {
-                Ok(Some(Token::new(TokenType::NOT, image, start_pos, self.position)))
-            }
-            "AND" => {
-                Ok(Some(Token::new(TokenType::AND, image, start_pos, self.position)))
-            }
-            "OR" => {
-                Ok(Some(Token::new(TokenType::OR, image, start_pos, self.position)))
-            }
-            "BETWEEN" => {
-                Ok(Some(Token::new(TokenType::BETWEEN, image, start_pos, self.position)))
-            }
-            "LIKE" => {
-                Ok(Some(Token::new(TokenType::LIKE, image, start_pos, self.position)))
-            }
-            "ESCAPE" => {
-                Ok(Some(Token::new(TokenType::ESCAPE, image, start_pos, self.position)))
-            }
-            "IN" => {
-                Ok(Some(Token::new(TokenType::IN, image, start_pos, self.position)))
-            }
-            "IS" => {
-                Ok(Some(Token::new(TokenType::IS, image, start_pos, self.position)))
-            }
-            "TRUE" => {
-                Ok(Some(Token::new(TokenType::TRUE, image, start_pos, self.position)))
-            }
-            "FALSE" => {
-                Ok(Some(Token::new(TokenType::FALSE, image, start_pos, self.position)))
-            }
-            "NULL" => {
-                Ok(Some(Token::new(TokenType::NULL, image, start_pos, self.position)))
-            }
-            _ => Ok(None),
-        }
+        let token_type = match upper.as_str() {
+            "NOT" => TokenType::NOT,
+            "AND" => TokenType::AND,
+            "OR" => TokenType::OR,
+            "BETWEEN" => TokenType::BETWEEN,
+            "LIKE" => TokenType::LIKE,
+            "ESCAPE" => TokenType::ESCAPE,
+            "IN" => TokenType::IN,
+            "IS" => TokenType::IS,
+            "TRUE" => TokenType::TRUE,
+            "FALSE" => TokenType::FALSE,
+            "NULL" => TokenType::NULL,
+            _ => TokenType::ID,
+        };
+
+        Ok(Some(Token::new(token_type, image, start_pos, self.position)))
     }
 
     /// Skip whitespace and ignored tokens

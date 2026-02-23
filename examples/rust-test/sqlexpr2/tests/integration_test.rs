@@ -425,33 +425,25 @@ fn test_lexer_unknown_char_bang() {
 }
 
 // ============================================================================
-// LEXER TESTS - Identifier handling (known limitation)
-// The grammar defines <ID> but the generated lexer only has match_keyword,
-// not match_identifier_or_keyword. Non-keyword identifiers are consumed by
-// match_keyword but it returns Ok(None), causing a confusing error.
+// LEXER TESTS - Identifier handling
 // ============================================================================
 
 #[test]
-fn test_lexer_non_keyword_identifier_fails() {
+fn test_lexer_non_keyword_identifier() {
     let mut lexer = Lexer::new("foo".to_string());
-    let result = lexer.next_token();
-    // "foo" is consumed by match_keyword (alphabetic chars), but doesn't match
-    // any keyword. The function returns Ok(None), which causes next_token to
-    // report "Unexpected character" (at the wrong position since chars were consumed).
-    assert!(
-        result.is_err(),
-        "Non-keyword identifier should error (ID token not supported in generated lexer)"
-    );
+    let token = lexer.next_token().expect("should tokenize identifier");
+    assert!(token.is_type(TokenType::ID), "non-keyword identifier should be ID token");
+    assert_eq!(token.image, "foo");
 }
 
 #[test]
 fn test_lexer_dollar_identifier_fails() {
     // Grammar defines ID as starting with ["a"-"z", "_", "$"] but $ is not
-    // recognized by the generated keyword matcher
+    // yet recognized by the generated lexer's entry condition
     let mut lexer = Lexer::new("$foo".to_string());
     assert!(
         lexer.next_token().is_err(),
-        "$ prefix identifier should error (ID token not supported)"
+        "$ prefix identifier should error (not yet supported in entry condition)"
     );
 }
 
