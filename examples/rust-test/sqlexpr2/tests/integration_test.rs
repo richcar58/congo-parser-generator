@@ -1450,37 +1450,37 @@ fn test_parse_error_is_std_error() {
 
 #[test]
 fn test_simple_equality() {
-    let mut parser = Parser::new("42 = 1".to_string()).unwrap();
+    let mut parser = Parser::new("x = 1".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Simple equality should parse");
 }
 
 #[test]
 fn test_not_equal() {
-    let mut parser = Parser::new("42 <> 1".to_string()).unwrap();
+    let mut parser = Parser::new("x <> 1".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "<> comparison should parse");
 }
 
 #[test]
 fn test_less_than() {
-    let mut parser = Parser::new("42 < 100".to_string()).unwrap();
+    let mut parser = Parser::new("price < 100".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Less than should parse");
 }
 
 #[test]
 fn test_greater_than() {
-    let mut parser = Parser::new("42 > 100".to_string()).unwrap();
+    let mut parser = Parser::new("price > 100".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Greater than should parse");
 }
 
 #[test]
 fn test_less_or_equal() {
-    let mut parser = Parser::new("42 <= 100".to_string()).unwrap();
+    let mut parser = Parser::new("price <= 100".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Less or equal should parse");
 }
 
 #[test]
 fn test_greater_or_equal() {
-    let mut parser = Parser::new("42 >= 100".to_string()).unwrap();
+    let mut parser = Parser::new("price >= 100".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Greater or equal should parse");
 }
 
@@ -1488,31 +1488,31 @@ fn test_greater_or_equal() {
 
 #[test]
 fn test_and_expression() {
-    let mut parser = Parser::new("42 = 1 AND 99 = 2".to_string()).unwrap();
+    let mut parser = Parser::new("x = 1 AND y = 2".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "AND expression should parse");
 }
 
 #[test]
 fn test_or_expression() {
-    let mut parser = Parser::new("42 = 1 OR 99 = 2".to_string()).unwrap();
+    let mut parser = Parser::new("x = 1 OR y = 2".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "OR expression should parse");
 }
 
 #[test]
 fn test_not_expression() {
-    let mut parser = Parser::new("NOT 42 = 1".to_string()).unwrap();
+    let mut parser = Parser::new("NOT x = 1".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "NOT expression should parse");
 }
 
 #[test]
 fn test_complex_boolean() {
-    let mut parser = Parser::new("(42 = 1 OR 99 = 2) AND NOT 0 = 3".to_string()).unwrap();
+    let mut parser = Parser::new("(x = 1 OR y = 2) AND NOT 0 = 3".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Complex boolean should parse");
 }
 
 #[test]
 fn test_case_insensitive_keywords() {
-    let mut parser = Parser::new("42 = 1 and 99 = 2 or 0 = 3".to_string()).unwrap();
+    let mut parser = Parser::new("x = 1 and y = 2 or z = 3".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Lowercase keywords should parse");
 }
 
@@ -1520,38 +1520,38 @@ fn test_case_insensitive_keywords() {
 
 #[test]
 fn test_like_expression() {
-    let mut parser = Parser::new("'hello' LIKE 'foo%'".to_string()).unwrap();
+    let mut parser = Parser::new("name LIKE 'foo%'".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "LIKE expression should parse");
 }
 
 #[test]
 fn test_in_expression() {
     // Grammar requires stringLitteral items in IN list (not numeric literals)
-    let mut parser = Parser::new("42 IN ('a', 'b', 'c')".to_string()).unwrap();
+    let mut parser = Parser::new("alpha IN ('a', 'b', 'c')".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "IN expression should parse");
 }
 
 #[test]
 fn test_in_strings() {
-    let mut parser = Parser::new("42 IN ('active', 'pending')".to_string()).unwrap();
+    let mut parser = Parser::new("state IN ('active', 'pending')".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "IN with strings should parse");
 }
 
 #[test]
 fn test_between_expression() {
-    let mut parser = Parser::new("42 BETWEEN 10 AND 100".to_string()).unwrap();
+    let mut parser = Parser::new("range BETWEEN 10 AND 100".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "BETWEEN expression should parse");
 }
 
 #[test]
 fn test_is_null() {
-    let mut parser = Parser::new("42 IS NULL".to_string()).unwrap();
+    let mut parser = Parser::new("x IS NULL".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "IS NULL should parse");
 }
 
 #[test]
 fn test_is_not_null() {
-    let mut parser = Parser::new("42 IS NOT NULL".to_string()).unwrap();
+    let mut parser = Parser::new("x IS NOT NULL".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "IS NOT NULL should parse");
 }
 
@@ -1597,37 +1597,37 @@ fn test_null_literal() {
 
 #[test]
 fn test_addition() {
-    let mut parser = Parser::new("1 + 2".to_string()).unwrap();
+    let mut parser = Parser::new("x + 2".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Addition should parse");
 }
 
 #[test]
 fn test_subtraction() {
-    let mut parser = Parser::new("1 - 2".to_string()).unwrap();
+    let mut parser = Parser::new("x - 2".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Subtraction should parse");
 }
 
 #[test]
 fn test_multiplication() {
-    let mut parser = Parser::new("1 * 2".to_string()).unwrap();
+    let mut parser = Parser::new("x * 2".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Multiplication should parse");
 }
 
 #[test]
 fn test_division() {
-    let mut parser = Parser::new("1 / 2".to_string()).unwrap();
+    let mut parser = Parser::new("x / 2".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Division should parse");
 }
 
 #[test]
 fn test_unary_minus() {
-    let mut parser = Parser::new("-42".to_string()).unwrap();
+    let mut parser = Parser::new("-x".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Unary minus should parse");
 }
 
 #[test]
 fn test_arithmetic_comparison() {
-    let mut parser = Parser::new("1 + 2 * 2 > 100".to_string()).unwrap();
+    let mut parser = Parser::new("x + y * 2 > 100".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Arithmetic in comparison should parse");
 }
 
@@ -1635,20 +1635,20 @@ fn test_arithmetic_comparison() {
 
 #[test]
 fn test_complex_expression() {
-    let input = "TRUE AND (42 < 50 OR 99 > 10)".to_string();
+    let input = "active AND (price < 50 OR quantity > 10)".to_string();
     let mut parser = Parser::new(input).unwrap();
     assert!(parser.parse().is_ok(), "Complex expression should parse");
 }
 
 #[test]
 fn test_nested_parentheses() {
-    let mut parser = Parser::new("((42 = 1))".to_string()).unwrap();
+    let mut parser = Parser::new("((x = 1))".to_string()).unwrap();
     assert!(parser.parse().is_ok(), "Nested parentheses should parse");
 }
 
 #[test]
 fn test_realistic_query() {
-    let input = "'a' = 'a' AND 42 BETWEEN 10 AND 100 AND 'hello' LIKE 'test%'".to_string();
+    let input = "status = 'active' AND price BETWEEN 10 AND 100 AND name LIKE 'test%'".to_string();
     let mut parser = Parser::new(input).unwrap();
     assert!(parser.parse().is_ok(), "Realistic query should parse");
 }
@@ -1669,14 +1669,13 @@ fn test_invalid_just_and() {
 
 #[test]
 fn test_invalid_double_operator() {
-    // "42 == 1" lexes as [42, =, =, 1]; second = is not a valid primary
-    let mut parser = Parser::new("42 == 1".to_string()).unwrap();
+    let mut parser = Parser::new("x == 1".to_string()).unwrap();
     assert!(parser.parse().is_err(), "Double equals should fail");
 }
 
 #[test]
 fn test_invalid_missing_rhs() {
-    let mut parser = Parser::new("42 =".to_string()).unwrap();
+    let mut parser = Parser::new("x =".to_string()).unwrap();
     assert!(parser.parse().is_err(), "Missing right side should fail");
 }
 
@@ -1688,7 +1687,7 @@ fn test_invalid_missing_lhs() {
 
 #[test]
 fn test_invalid_unbalanced_paren() {
-    let mut parser = Parser::new("(42 = 1".to_string()).unwrap();
+    let mut parser = Parser::new("(x = 1".to_string()).unwrap();
     assert!(parser.parse().is_err(), "Unbalanced paren should fail");
 }
 
@@ -1700,25 +1699,25 @@ fn test_invalid_empty_parens() {
 
 #[test]
 fn test_invalid_in_no_list() {
-    let mut parser = Parser::new("42 IN ()".to_string()).unwrap();
+    let mut parser = Parser::new("x IN ()".to_string()).unwrap();
     assert!(parser.parse().is_err(), "IN with empty list should fail");
 }
 
 #[test]
 fn test_invalid_between_missing_and() {
-    let mut parser = Parser::new("42 BETWEEN 1 2".to_string()).unwrap();
+    let mut parser = Parser::new("x BETWEEN 1 2".to_string()).unwrap();
     assert!(parser.parse().is_err(), "BETWEEN without AND should fail");
 }
 
 #[test]
 fn test_invalid_like_no_string() {
-    let mut parser = Parser::new("42 LIKE 42".to_string()).unwrap();
+    let mut parser = Parser::new("x LIKE 42".to_string()).unwrap();
     assert!(parser.parse().is_err(), "LIKE with non-string should fail");
 }
 
 #[test]
 fn test_invalid_trailing_and() {
-    let mut parser = Parser::new("42 = 1 AND".to_string()).unwrap();
+    let mut parser = Parser::new("x = 1 AND".to_string()).unwrap();
     assert!(parser.parse().is_err(), "Trailing AND should fail");
 }
 
