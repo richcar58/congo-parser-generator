@@ -150,33 +150,30 @@ impl Parser {
             children.push(child);
         }
         loop {
-        if (
-            self.current_token.token_type == TokenType::Token17
-        ) {
+        if self.current_token.token_type == TokenType::Token17
+        {
         self.expect_token(TokenType::Token17)?;
         {
             let child = self.parse_comparison_expression()?;
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::Token18
-        ) {
+        else if self.current_token.token_type == TokenType::Token18
+        {
         self.expect_token(TokenType::Token18)?;
         {
             let child = self.parse_comparison_expression()?;
             children.push(child);
         }
         }
-        else if (
+        else if 
             self.current_token.token_type == TokenType::IS
-        ) {
+        {
         self.expect_token(TokenType::IS)?;
         self.expect_token(TokenType::NULL)?;
         }
-        else if (
-            self.current_token.token_type == TokenType::IS
-        ) {
+        else if self.current_token.token_type == TokenType::IS
+        {
         self.expect_token(TokenType::IS)?;
         self.expect_token(TokenType::NOT)?;
         self.expect_token(TokenType::NULL)?;
@@ -206,45 +203,40 @@ impl Parser {
             children.push(child);
         }
         loop {
-        if (
-            self.current_token.token_type == TokenType::Token19
-        ) {
+        if self.current_token.token_type == TokenType::Token19
+        {
         self.expect_token(TokenType::Token19)?;
         {
             let child = self.parse_add_expression()?;
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::Token20
-        ) {
+        else if self.current_token.token_type == TokenType::Token20
+        {
         self.expect_token(TokenType::Token20)?;
         {
             let child = self.parse_add_expression()?;
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::Token21
-        ) {
+        else if self.current_token.token_type == TokenType::Token21
+        {
         self.expect_token(TokenType::Token21)?;
         {
             let child = self.parse_add_expression()?;
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::Token22
-        ) {
+        else if self.current_token.token_type == TokenType::Token22
+        {
         self.expect_token(TokenType::Token22)?;
         {
             let child = self.parse_add_expression()?;
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::LIKE
-        ) {
+        else if self.current_token.token_type == TokenType::LIKE
+        {
         self.expect_token(TokenType::LIKE)?;
         {
             let child = self.parse_string_litteral()?;
@@ -259,9 +251,9 @@ impl Parser {
         }
         }
         }
-        else if (
+        else if 
             self.current_token.token_type == TokenType::NOT
-        ) {
+        {
         self.expect_token(TokenType::NOT)?;
         self.expect_token(TokenType::LIKE)?;
         {
@@ -277,9 +269,8 @@ impl Parser {
         }
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::BETWEEN
-        ) {
+        else if self.current_token.token_type == TokenType::BETWEEN
+        {
         self.expect_token(TokenType::BETWEEN)?;
         {
             let child = self.parse_add_expression()?;
@@ -291,9 +282,9 @@ impl Parser {
             children.push(child);
         }
         }
-        else if (
+        else if 
             self.current_token.token_type == TokenType::NOT
-        ) {
+        {
         self.expect_token(TokenType::NOT)?;
         self.expect_token(TokenType::BETWEEN)?;
         {
@@ -306,9 +297,8 @@ impl Parser {
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::IN
-        ) {
+        else if self.current_token.token_type == TokenType::IN
+        {
         self.expect_token(TokenType::IN)?;
         self.expect_token(TokenType::Token23)?;
         {
@@ -325,9 +315,9 @@ impl Parser {
         }
         self.expect_token(TokenType::Token25)?;
         }
-        else if (
+        else if 
             self.current_token.token_type == TokenType::NOT
-        ) {
+        {
         self.expect_token(TokenType::NOT)?;
         self.expect_token(TokenType::IN)?;
         self.expect_token(TokenType::Token23)?;
@@ -439,54 +429,42 @@ impl Parser {
         let begin_token = self.alloc_current_token();
         let mut children: Vec<NodeId> = Vec::new();
 
-        if (
+        if 
             self.current_token.token_type == TokenType::Token26
-        ) {
+        {
         self.expect_token(TokenType::Token26)?;
         {
             let child = self.parse_unary_expr()?;
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::Token27
-        ) {
+        else if self.current_token.token_type == TokenType::Token27
+        {
         self.expect_token(TokenType::Token27)?;
         {
             let child = self.parse_unary_expr()?;
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::NOT
-        ) {
+        else if self.current_token.token_type == TokenType::NOT
+        {
         self.expect_token(TokenType::NOT)?;
         {
             let child = self.parse_unary_expr()?;
             children.push(child);
         }
         }
-        else if (
-            self.current_token.token_type == TokenType::TRUE
-            || 
-            self.current_token.token_type == TokenType::FALSE
-            || 
-            self.current_token.token_type == TokenType::NULL
-            || 
-            self.current_token.token_type == TokenType::Token23
-            || 
-            self.current_token.token_type == TokenType::DECIMAL_LITERAL
-            || 
-            self.current_token.token_type == TokenType::HEX_LITERAL
-            || 
-            self.current_token.token_type == TokenType::OCTAL_LITERAL
-            || 
-            self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL
-            || 
-            self.current_token.token_type == TokenType::STRING_LITERAL
-            || 
-            self.current_token.token_type == TokenType::ID
-        ) {
+        else if self.current_token.token_type == TokenType::TRUE
+            || self.current_token.token_type == TokenType::FALSE
+            || self.current_token.token_type == TokenType::NULL
+            || self.current_token.token_type == TokenType::Token23
+            || self.current_token.token_type == TokenType::DECIMAL_LITERAL
+            || self.current_token.token_type == TokenType::HEX_LITERAL
+            || self.current_token.token_type == TokenType::OCTAL_LITERAL
+            || self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL
+            || self.current_token.token_type == TokenType::STRING_LITERAL
+            || self.current_token.token_type == TokenType::ID
+        {
         {
             let child = self.parse_primary_expr()?;
             children.push(child);
@@ -517,29 +495,20 @@ impl Parser {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();
 
-        if (
-            self.current_token.token_type == TokenType::TRUE
-            || 
-            self.current_token.token_type == TokenType::FALSE
-            || 
-            self.current_token.token_type == TokenType::NULL
-            || 
-            self.current_token.token_type == TokenType::DECIMAL_LITERAL
-            || 
-            self.current_token.token_type == TokenType::HEX_LITERAL
-            || 
-            self.current_token.token_type == TokenType::OCTAL_LITERAL
-            || 
-            self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL
-            || 
-            self.current_token.token_type == TokenType::STRING_LITERAL
-        ) {
+        if self.current_token.token_type == TokenType::TRUE
+            || self.current_token.token_type == TokenType::FALSE
+            || self.current_token.token_type == TokenType::NULL
+            || self.current_token.token_type == TokenType::DECIMAL_LITERAL
+            || self.current_token.token_type == TokenType::HEX_LITERAL
+            || self.current_token.token_type == TokenType::OCTAL_LITERAL
+            || self.current_token.token_type == TokenType::FLOATING_POINT_LITERAL
+            || self.current_token.token_type == TokenType::STRING_LITERAL
+        {
             let inner = self.parse_literal()?;
             children.push(inner);
         }
-        else if (
-            self.current_token.token_type == TokenType::ID
-        ) {
+        else if self.current_token.token_type == TokenType::ID
+        {
             let inner = self.parse_variable()?;
             children.push(inner);
         }
@@ -575,9 +544,8 @@ impl Parser {
         let begin_token = self.alloc_current_token();
         let mut children = Vec::new();
 
-        if (
-            self.current_token.token_type == TokenType::STRING_LITERAL
-        ) {
+        if self.current_token.token_type == TokenType::STRING_LITERAL
+        {
             let inner = self.parse_string_litteral()?;
             children.push(inner);
         }

@@ -324,12 +324,9 @@ impl Parser {
             self.consume_token()?;
         }
 [#elseif alt.type == "nonterminal"]
-        ${(alt_index == 0)?string("if", "else if")} (
-    [#list globals::getRustFirstSetTokenNames(info.resolvedExpansion.choices[alt_index]) as name]
-            self.current_token.token_type == TokenType::${name}[#if name_has_next]
-            || [/#if]
-    [/#list]
-        ) {
+        ${(alt_index == 0)?string("if", "else if")} [#list globals::getRustFirstSetTokenNames(info.resolvedExpansion.choices[alt_index]) as name]self.current_token.token_type == TokenType::${name}[#if name_has_next]
+            || [/#if][/#list]
+        {
             let inner = self.parse_${globals::translateIdentifier(alt.productionName)}()?;
             children.push(inner);
         }
@@ -535,8 +532,7 @@ impl Parser {
 [/#if]
 [#var firstTokens = globals::getRustFirstSetTokenNames(expansion)]
 [#if firstTokens?size > 0]
-        ${(expansion_index == 0)?string("if", "else if")} (
-[#if expansion.requiresPredicateMethod]
+        ${(expansion_index == 0)?string("if", "else if")} [#if expansion.requiresPredicateMethod]
 [#-- Multi-token lookahead needed (SCAN directive) --]
 [#var laTokens = globals::getRustLookaheadTokens(expansion)]
 [#list laTokens as tok]
@@ -548,12 +544,10 @@ impl Parser {
 [/#list]
 [#else]
 [#-- Simple single-token lookahead --]
-[#list firstTokens as name]
-            self.current_token.token_type == TokenType::${name}[#if name_has_next]
-            || [/#if]
-[/#list]
+[#list firstTokens as name]self.current_token.token_type == TokenType::${name}[#if name_has_next]
+            || [/#if][/#list]
 [/#if]
-        ) {
+        {
 [@BuildExpansionCode expansion /]
         }
 [/#if]
